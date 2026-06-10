@@ -1,0 +1,87 @@
+@model KhachHang
+@{
+    ViewData["Title"] = "Thông tin cá nhân";
+    ViewData["HideCategories"] = true;
+    var anhDaiDien = string.IsNullOrWhiteSpace(Model.AnhDaiDien) ? null : Model.AnhDaiDien;
+}
+
+<section class="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
+    <div class="mb-8">
+        <p class="text-sm font-semibold text-brand-600">Tài khoản MiniStop</p>
+        <h1 class="mt-2 text-3xl font-black text-slate-900">Thông tin cá nhân</h1>
+        <p class="mt-2 text-slate-500">Cập nhật hồ sơ, ảnh đại diện và mật khẩu đăng nhập của bạn.</p>
+    </div>
+
+    @if (TempData["ThongBaoThanhCong"] is string thongBao)
+    {
+        <div class="mb-6 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700">@thongBao</div>
+    }
+
+    @if (!ViewData.ModelState.IsValid)
+    {
+        <div class="mb-6 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+            @Html.ValidationSummary(false, "", new { @class = "m-0 list-disc pl-4" })
+        </div>
+    }
+
+    <div class="grid gap-6 lg:grid-cols-[1fr_360px]">
+        <form method="post" action="/TaiKhoan/CapNhatThongTin" enctype="multipart/form-data" class="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+            @Html.AntiForgeryToken()
+            <h2 class="text-xl font-bold text-slate-900">Hồ sơ khách hàng</h2>
+
+            <div class="mt-6 flex items-center gap-4">
+                @if (anhDaiDien != null)
+                {
+                    <img src="@anhDaiDien" alt="@Model.HoTen" class="h-20 w-20 rounded-full object-cover ring-4 ring-slate-100" />
+                }
+                else
+                {
+                    <div class="flex h-20 w-20 items-center justify-center rounded-full bg-brand-100 text-2xl font-black text-brand-700 ring-4 ring-slate-100">@Model.HoTen.FirstOrDefault()</div>
+                }
+                <div class="flex-1">
+                    <label for="anhDaiDien" class="mb-1 block text-sm font-semibold text-slate-700">Ảnh đại diện</label>
+                    <input id="anhDaiDien" name="anhDaiDien" type="file" accept=".jpg,.jpeg,.png,.webp" class="block w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700" />
+                    <p class="mt-1 text-xs text-slate-400">JPG, PNG hoặc WEBP, tối đa 2MB.</p>
+                </div>
+            </div>
+
+            <div class="mt-6 grid gap-4 md:grid-cols-2">
+                <div>
+                    <label for="hoTen" class="mb-1 block text-sm font-semibold text-slate-700">Họ và tên</label>
+                    <input id="hoTen" name="hoTen" value="@Model.HoTen" class="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100" />
+                </div>
+                <div>
+                    <label for="dienThoai" class="mb-1 block text-sm font-semibold text-slate-700">Số điện thoại</label>
+                    <input id="dienThoai" name="dienThoai" value="@Model.DienThoai" class="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100" />
+                </div>
+            </div>
+
+            <div class="mt-4">
+                <label for="email" class="mb-1 block text-sm font-semibold text-slate-700">Email</label>
+                <input id="email" name="email" type="email" value="@Model.Email" class="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100" />
+            </div>
+
+            <button type="submit" class="mt-6 rounded-xl bg-brand-600 px-5 py-3 font-bold text-white hover:bg-brand-700">Lưu thông tin</button>
+        </form>
+
+        <aside class="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+            <h2 class="text-xl font-bold text-slate-900">Đổi mật khẩu</h2>
+            <form method="post" action="/TaiKhoan/DoiMatKhau" class="mt-6 space-y-4">
+                @Html.AntiForgeryToken()
+                <div>
+                    <label for="matKhauHienTai" class="mb-1 block text-sm font-semibold text-slate-700">Mật khẩu hiện tại</label>
+                    <input id="matKhauHienTai" name="matKhauHienTai" type="password" class="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100" />
+                </div>
+                <div>
+                    <label for="matKhauMoi" class="mb-1 block text-sm font-semibold text-slate-700">Mật khẩu mới</label>
+                    <input id="matKhauMoi" name="matKhauMoi" type="password" class="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100" />
+                </div>
+                <div>
+                    <label for="xacNhanMatKhauMoi" class="mb-1 block text-sm font-semibold text-slate-700">Xác nhận mật khẩu mới</label>
+                    <input id="xacNhanMatKhauMoi" name="xacNhanMatKhauMoi" type="password" class="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100" />
+                </div>
+                <button type="submit" class="w-full rounded-xl bg-slate-900 px-5 py-3 font-bold text-white hover:bg-slate-800">Đổi mật khẩu</button>
+            </form>
+        </aside>
+    </div>
+</section>

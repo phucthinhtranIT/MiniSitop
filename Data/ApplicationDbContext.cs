@@ -17,6 +17,8 @@ public class ApplicationDbContext : DbContext
     public DbSet<KhuyenMai> KhuyenMais => Set<KhuyenMai>();
     public DbSet<DonHang> DonHangs => Set<DonHang>();
     public DbSet<ChiTietDonHang> ChiTietDonHangs => Set<ChiTietDonHang>();
+    public DbSet<CaLamViec> CaLamViecs => Set<CaLamViec>();
+    public DbSet<PhanCaNhanVien> PhanCaNhanViens => Set<PhanCaNhanVien>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -53,5 +55,17 @@ public class ApplicationDbContext : DbContext
             .WithMany()
             .HasForeignKey(oi => oi.SanPhamId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<PhanCaNhanVien>()
+            .HasOne(p => p.CaLamViec)
+            .WithMany(c => c.PhanCaNhanViens)
+            .HasForeignKey(p => p.CaLamViecId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<PhanCaNhanVien>()
+            .HasOne(p => p.NhanVien)
+            .WithMany()
+            .HasForeignKey(p => p.NhanVienId)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }

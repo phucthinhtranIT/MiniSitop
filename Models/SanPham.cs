@@ -15,6 +15,9 @@ public class SanPham
     [StringLength(250)]
     public string? MoTa { get; set; }
 
+    [StringLength(500)]
+    public string? HinhAnh { get; set; }
+
     public int DanhMucId { get; set; }
     public DanhMuc? DanhMuc { get; set; }
 

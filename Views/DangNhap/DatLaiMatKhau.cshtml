@@ -1,0 +1,35 @@
+@{
+    Layout = "_Layout";
+    ViewData["HideCategories"] = true;
+    ViewData["Title"] = "Đặt lại mật khẩu";
+    var token = ViewBag.Token as string ?? string.Empty;
+}
+
+<section class="mx-auto max-w-xl px-4 py-10 sm:px-6 lg:px-8">
+    <div class="rounded-2xl border border-slate-100 bg-white p-8 shadow-sm">
+        <p class="text-sm font-semibold text-brand-600">MiniStop</p>
+        <h1 class="mt-2 text-2xl font-black text-slate-900">Đặt lại mật khẩu</h1>
+        <p class="mt-2 text-slate-500">Nhập mật khẩu mới cho tài khoản của bạn.</p>
+
+        @if (!ViewData.ModelState.IsValid)
+        {
+            <div class="mt-6 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+                @Html.ValidationSummary(false, "", new { @class = "m-0 list-disc pl-4" })
+            </div>
+        }
+
+        <form method="post" action="/DangNhap/DatLaiMatKhau" class="mt-6 space-y-4">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="token" value="@token" />
+            <div>
+                <label for="matKhau" class="mb-1 block text-sm font-semibold text-slate-700">Mật khẩu mới</label>
+                <input id="matKhau" name="matKhau" type="password" class="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100" />
+            </div>
+            <div>
+                <label for="xacNhanMatKhau" class="mb-1 block text-sm font-semibold text-slate-700">Xác nhận mật khẩu mới</label>
+                <input id="xacNhanMatKhau" name="xacNhanMatKhau" type="password" class="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100" />
+            </div>
+            <button type="submit" class="w-full rounded-xl bg-brand-600 px-5 py-3 font-bold text-white hover:bg-brand-700">Lưu mật khẩu mới</button>
+        </form>
+    </div>
+</section>

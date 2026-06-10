@@ -1,0 +1,112 @@
+@using WebQLministop.Models
+@{
+    ViewData["Title"] = "Kết quả tìm kiếm";
+    ViewData["HideCategories"] = true;
+    var sanPhams = ViewBag.SanPhams as List<SanPham> ?? new List<SanPham>();
+    var danhMucs = ViewBag.DanhMucs as List<DanhMuc> ?? new List<DanhMuc>();
+    var keyword = ViewData["Keyword"] as string;
+    var danhMucDangChon = ViewData["DanhMuc"] as string;
+    var sapXep = ViewData["SapXep"] as string;
+    const string anhDuPhong = "https://images.unsplash.com/photo-1601598851547-4302969d0614?auto=format&fit=crop&w=600&q=80";
+}
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8">
+    <nav class="flex text-sm text-slate-500 mb-6" aria-label="Đường dẫn điều hướng">
+        <ol class="inline-flex items-center space-x-1 md:space-x-3">
+            <li class="inline-flex items-center">
+                <a href="/" class="hover:text-brand-600 text-decoration-none">Trang chủ</a>
+            </li>
+            <li>
+                <div class="flex items-center">
+                    <svg class="w-4 h-4 mx-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"></path></svg>
+                    <span class="text-slate-800 font-semibold">Tìm kiếm</span>
+                </div>
+            </li>
+        </ol>
+    </nav>
+
+    <div class="flex flex-col md:flex-row gap-8">
+        <aside class="w-full md:w-1/4 shrink-0">
+            <form method="get" action="/Home/TimKiem" class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 sticky top-24">
+                <div class="flex items-center gap-2 mb-6 border-b border-slate-100 pb-4">
+                    <svg class="w-5 h-5 text-brand-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"></path></svg>
+                    <h3 class="text-lg font-bold text-slate-900">Bộ lọc</h3>
+                </div>
+
+                <label class="block text-sm font-semibold text-slate-800 mb-2" for="keyword">Từ khóa</label>
+                <input id="keyword" name="keyword" value="@keyword" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none focus:border-brand-500 focus:bg-white" placeholder="Nhập tên sản phẩm" />
+
+                <div class="mt-6">
+                    <label class="block text-sm font-semibold text-slate-800 mb-2" for="danhMuc">Danh mục</label>
+                    <select id="danhMuc" name="danhMuc" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none focus:border-brand-500 focus:bg-white">
+                        <option value="">Tất cả danh mục</option>
+                        @foreach (var danhMuc in danhMucs)
+                        {
+                            <option value="@danhMuc.Ten" selected="@(danhMuc.Ten == danhMucDangChon)">@danhMuc.Ten</option>
+                        }
+                    </select>
+                </div>
+
+                <div class="mt-6">
+                    <label class="block text-sm font-semibold text-slate-800 mb-2" for="sapXep">Sắp xếp</label>
+                    <select id="sapXep" name="sapXep" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none focus:border-brand-500 focus:bg-white">
+                        <option value="" selected="@(string.IsNullOrWhiteSpace(sapXep))">Mới nhất</option>
+                        <option value="gia-tang" selected="@(sapXep == "gia-tang")">Giá tăng dần</option>
+                        <option value="gia-giam" selected="@(sapXep == "gia-giam")">Giá giảm dần</option>
+                    </select>
+                </div>
+
+                <button type="submit" class="mt-6 w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-2.5 rounded-xl transition-colors">
+                    Áp dụng
+                </button>
+            </form>
+        </aside>
+
+        <main class="w-full md:w-3/4">
+            <div class="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                    <h1 class="text-2xl font-black text-slate-900">
+                        Kết quả sản phẩm
+                    </h1>
+                    <p class="text-slate-500 text-sm mt-1">
+                        Tìm thấy @sanPhams.Count sản phẩm@(string.IsNullOrWhiteSpace(keyword) ? "" : $" cho \"{keyword}\"").
+                    </p>
+                </div>
+            </div>
+
+            @if (!sanPhams.Any())
+            {
+                <div class="bg-white rounded-2xl border border-slate-100 p-10 text-center">
+                    <h2 class="text-xl font-bold text-slate-900 mb-2">Chưa có sản phẩm phù hợp</h2>
+                    <p class="text-slate-500">Bạn thử đổi từ khóa hoặc chọn danh mục khác.</p>
+                </div>
+            }
+            else
+            {
+                <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                    @foreach (var sanPham in sanPhams)
+                    {
+                        var hinhAnh = string.IsNullOrWhiteSpace(sanPham.HinhAnh) ? anhDuPhong : sanPham.HinhAnh;
+                        <article class="bg-white rounded-xl p-3 shadow-sm border border-slate-100 group hover:shadow-md transition-shadow">
+                            <div class="aspect-square bg-slate-50 rounded-lg mb-3 overflow-hidden relative">
+                                <img src="@hinhAnh" alt="@sanPham.Ten" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                            </div>
+                            <div class="text-xs text-slate-500 mb-1">@sanPham.DanhMuc?.Ten</div>
+                            <h3 class="text-sm font-semibold text-slate-800 line-clamp-2 mb-3 group-hover:text-brand-600 h-10">@sanPham.Ten</h3>
+                            <div class="flex items-end justify-between gap-2">
+                                <div>
+                                    <div class="text-base font-bold text-brand-600">@sanPham.GiaBan.ToString("N0")đ</div>
+                                    <div class="text-xs text-slate-400">Còn @sanPham.TonKho @sanPham.DonVi</div>
+                                </div>
+                                <button type="button" class="cart-add-button bg-slate-50 text-slate-500 hover:bg-brand-500 hover:text-white w-9 h-9 rounded-full flex items-center justify-center transition-colors border-0"
+                                        data-id="@sanPham.Id" data-ma="@sanPham.Ma" data-ten="@sanPham.Ten" data-gia="@sanPham.GiaBan" data-hinh="@hinhAnh" data-donvi="@sanPham.DonVi" data-tonkho="@sanPham.TonKho" aria-label="Thêm @sanPham.Ten vào giỏ hàng">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v12m6-6H6"></path></svg>
+                                </button>
+                            </div>
+                        </article>
+                    }
+                </div>
+            }
+        </main>
+    </div>
+</div>

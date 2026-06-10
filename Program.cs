@@ -1,22 +1,33 @@
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using WebQLministop.Data;
 using WebQLministop.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddControllersWithViews();
+var mvcBuilder = builder.Services.AddControllersWithViews();
+if (builder.Environment.IsDevelopment())
+{
+    mvcBuilder.AddRazorRuntimeCompilation();
+}
 
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? "Server=.\\SQLEXPRESS;Database=WebQLministop;Trusted_Connection=True;TrustServerCertificate=True;";
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? "Server=.\\SQLEXPRESS;Database=WebQLministop;Trusted_Connection=True;TrustServerCertificate=True;Encrypt=False;";
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(connectionString));
+builder.Services.AddSession(options =>
+{
+    options.IdleTimeout = TimeSpan.FromMinutes(60);
+    options.Cookie.HttpOnly = true;
+    options.Cookie.IsEssential = true;
+});
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
+// Cấu hình luồng xử lý request của ứng dụng.
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Home/Error");
-    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
+    // HSTS mặc định là 30 ngày; có thể điều chỉnh lại khi triển khai môi trường thật.
     app.UseHsts();
 }
 
@@ -25,6 +36,7 @@ app.UseStaticFiles();
 
 app.UseRouting();
 
+app.UseSession();
 app.UseAuthorization();
 
 app.MapControllerRoute(
@@ -64,11 +76,11 @@ static void SeedData(ApplicationDbContext db)
 
     var products = new[]
     {
-        new SanPham { Ma = "DR001", Ten = "Coca Cola 330ml", DanhMucId = categories[0].Id, NhaCungCapId = suppliers[0].Id, GiaVon = 7_000m, GiaBan = 10_000m, DonVi = "chai", TonKho = 120, MucCanNhapLai = 30 },
-        new SanPham { Ma = "DR002", Ten = "Pepsi 355ml", DanhMucId = categories[0].Id, NhaCungCapId = suppliers[1].Id, GiaVon = 7_500m, GiaBan = 10_500m, DonVi = "chai", TonKho = 100, MucCanNhapLai = 25 },
-        new SanPham { Ma = "SN001", Ten = "Snack Oishi", DanhMucId = categories[1].Id, NhaCungCapId = suppliers[2].Id, GiaVon = 5_000m, GiaBan = 7_500m, DonVi = "goi", TonKho = 200, MucCanNhapLai = 40 },
-        new SanPham { Ma = "FD001", Ten = "Mi Omachi", DanhMucId = categories[2].Id, NhaCungCapId = suppliers[0].Id, GiaVon = 4_000m, GiaBan = 6_000m, DonVi = "goi", TonKho = 150, MucCanNhapLai = 30 },
-        new SanPham { Ma = "HM001", Ten = "Khăn giấy 4 lop", DanhMucId = categories[3].Id, NhaCungCapId = suppliers[1].Id, GiaVon = 12_000m, GiaBan = 16_000m, DonVi = "cuon", TonKho = 80, MucCanNhapLai = 20 }
+        new SanPham { Ma = "DR001", Ten = "Coca Cola 330ml", DanhMucId = categories[0].Id, NhaCungCapId = suppliers[0].Id, GiaVon = 7_000m, GiaBan = 10_000m, DonVi = "chai", TonKho = 120, MucCanNhapLai = 30, HinhAnh = "https://images.unsplash.com/photo-1622483767028-3f66f32aef97?auto=format&fit=crop&w=600&q=80" },
+        new SanPham { Ma = "DR002", Ten = "Pepsi 355ml", DanhMucId = categories[0].Id, NhaCungCapId = suppliers[1].Id, GiaVon = 7_500m, GiaBan = 10_500m, DonVi = "chai", TonKho = 100, MucCanNhapLai = 25, HinhAnh = "https://images.unsplash.com/photo-1599028903149-5919b5ce4c94?auto=format&fit=crop&w=600&q=80" },
+        new SanPham { Ma = "SN001", Ten = "Snack Oishi", DanhMucId = categories[1].Id, NhaCungCapId = suppliers[2].Id, GiaVon = 5_000m, GiaBan = 7_500m, DonVi = "goi", TonKho = 200, MucCanNhapLai = 40, HinhAnh = "https://images.unsplash.com/photo-1580828369619-1425e4c632e9?auto=format&fit=crop&w=600&q=80" },
+        new SanPham { Ma = "FD001", Ten = "Mi Omachi", DanhMucId = categories[2].Id, NhaCungCapId = suppliers[0].Id, GiaVon = 4_000m, GiaBan = 6_000m, DonVi = "goi", TonKho = 150, MucCanNhapLai = 30, HinhAnh = "https://images.unsplash.com/photo-1621939514646-b2861e053f3f?auto=format&fit=crop&w=600&q=80" },
+        new SanPham { Ma = "HM001", Ten = "Khan giay 4 lop", DanhMucId = categories[3].Id, NhaCungCapId = suppliers[1].Id, GiaVon = 12_000m, GiaBan = 16_000m, DonVi = "cuon", TonKho = 80, MucCanNhapLai = 20, HinhAnh = "https://images.unsplash.com/photo-1583947581924-860bda6a26df?auto=format&fit=crop&w=600&q=80" }
     };
     db.SanPhams.AddRange(products);
 
@@ -80,12 +92,17 @@ static void SeedData(ApplicationDbContext db)
     };
     db.NhanViens.AddRange(employees);
 
+    var passwordHasher = new PasswordHasher<KhachHang>();
     var customers = new[]
     {
         new KhachHang { HoTen = "Le Van Dung", DienThoai = "0930000001", Email = "dung@gmail.com", DiemThuong = 120 },
         new KhachHang { HoTen = "Bui Thi Hanh", DienThoai = "0930000002", Email = "hanh@gmail.com", DiemThuong = 85 },
         new KhachHang { HoTen = "Do Minh Khoi", DienThoai = "0930000003", Email = "khoi@gmail.com", DiemThuong = 60 }
     };
+    foreach (var customer in customers)
+    {
+        customer.MatKhauHash = passwordHasher.HashPassword(customer, "123456");
+    }
     db.KhachHangs.AddRange(customers);
 
     var promotions = new[]

@@ -1,0 +1,35 @@
+@{
+    Layout = "_Layout";
+    ViewData["HideCategories"] = true;
+    ViewData["Title"] = "Quên mật khẩu";
+}
+
+<section class="mx-auto max-w-xl px-4 py-10 sm:px-6 lg:px-8">
+    <div class="rounded-2xl border border-slate-100 bg-white p-8 shadow-sm">
+        <p class="text-sm font-semibold text-brand-600">MiniStop</p>
+        <h1 class="mt-2 text-2xl font-black text-slate-900">Quên mật khẩu</h1>
+        <p class="mt-2 text-slate-500">Nhập email đã đăng ký để nhận đường link đặt lại mật khẩu.</p>
+
+        @if (TempData["ThongBao"] is string thongBao)
+        {
+            <div class="mt-6 rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm font-semibold text-sky-700 break-words">@thongBao</div>
+        }
+
+        @if (!ViewData.ModelState.IsValid)
+        {
+            <div class="mt-6 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+                @Html.ValidationSummary(false, "", new { @class = "m-0 list-disc pl-4" })
+            </div>
+        }
+
+        <form method="post" action="/DangNhap/QuenMatKhau" class="mt-6 space-y-4">
+            @Html.AntiForgeryToken()
+            <div>
+                <label for="email" class="mb-1 block text-sm font-semibold text-slate-700">Email</label>
+                <input id="email" name="email" type="email" class="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100" placeholder="example@ministop.vn" />
+            </div>
+            <button type="submit" class="w-full rounded-xl bg-brand-600 px-5 py-3 font-bold text-white hover:bg-brand-700">Gửi link đặt lại mật khẩu</button>
+            <p class="text-center text-sm text-slate-500"><a href="/DangNhap" class="font-semibold text-brand-600 hover:text-brand-700">Quay lại đăng nhập</a></p>
+        </form>
+    </div>
+</section>

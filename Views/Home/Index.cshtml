@@ -1,8 +1,120 @@
-﻿@{
-    ViewData["Title"] = "Home Page";
+@using WebQLministop.Models
+@{
+    ViewData["Title"] = "Trang chủ khách";
+    var sanPhamsMoi = ViewBag.SanPhamsMoi as List<SanPham> ?? new List<SanPham>();
+    var sanPhamsBanChay = ViewBag.SanPhamsBanChay as List<SanPham> ?? new List<SanPham>();
+    var danhMucs = ViewBag.DanhMucs as List<DanhMuc> ?? new List<DanhMuc>();
+    const string anhDuPhong = "https://images.unsplash.com/photo-1601598851547-4302969d0614?auto=format&fit=crop&w=600&q=80";
 }
 
-<div class="text-center">
-    <h1 class="display-4">Welcome</h1>
-    <p>Learn about <a href="https://learn.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
+<div class="relative w-full max-w-7xl mx-auto md:mt-4 md:rounded-2xl overflow-hidden shadow-sm">
+    <div class="relative aspect-[21/10] md:aspect-[21/7] bg-slate-900 w-full">
+        <img src="https://images.unsplash.com/photo-1601598851547-4302969d0614?auto=format&fit=crop&w=1600&q=80" alt="Khu hàng tiện lợi MiniStop" class="absolute inset-0 w-full h-full object-cover opacity-60" />
+        <div class="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-900/70 to-transparent"></div>
+        <div class="absolute inset-y-0 left-0 flex flex-col justify-center px-6 md:px-16 w-full md:w-2/3">
+            <span class="inline-block px-3 py-1 bg-brand-500 text-white text-xs font-bold rounded-full w-fit mb-4">MỚI RA MẮT</span>
+            <h1 class="text-3xl md:text-5xl font-black text-white leading-tight mb-4">Mua nhanh đồ tiện lợi<br />cho mỗi ngày</h1>
+            <p class="text-slate-200 text-base md:text-lg mb-8 max-w-md">Đồ uống, bánh kẹo, thực phẩm nhanh và đồ dùng cá nhân được gom theo danh mục để khách chọn dễ hơn.</p>
+            <a href="#san-pham-moi" class="bg-brand-600 hover:bg-brand-500 text-white px-8 py-3 rounded-full font-bold w-fit transition-colors shadow-lg text-decoration-none">Khám phá ngay</a>
+        </div>
+    </div>
 </div>
+
+@if (danhMucs.Any())
+{
+    <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-10" id="danh-muc">
+        <div class="flex items-center justify-between mb-5">
+            <h2 class="text-xl md:text-2xl font-black text-slate-900">Danh mục mua nhanh</h2>
+            <a href="/Home/TimKiem" class="text-sm font-semibold text-brand-600 hover:text-brand-700 text-decoration-none">Xem tất cả</a>
+        </div>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+            @foreach (var danhMuc in danhMucs.Take(4))
+            {
+                <a href="/Home/TimKiem?danhMuc=@Uri.EscapeDataString(danhMuc.Ten)" class="group rounded-xl border border-slate-100 bg-white p-4 shadow-sm hover:border-brand-200 hover:shadow-md transition-all text-decoration-none">
+                    <div class="text-xs font-bold uppercase tracking-wide text-brand-600 mb-2">MiniStop</div>
+                    <div class="font-bold text-slate-900 group-hover:text-brand-600">@danhMuc.Ten</div>
+                    <div class="text-sm text-slate-500 mt-1 line-clamp-2">@danhMuc.MoTa</div>
+                </a>
+            }
+        </div>
+    </section>
+}
+
+<section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-12" id="san-pham-moi">
+    <div class="flex items-center justify-between mb-6">
+        <h2 class="text-2xl font-black text-slate-900">Sản phẩm mới ra mắt</h2>
+        <a href="/Home/TimKiem?sapXep=moi-nhat" class="text-brand-600 hover:text-brand-700 text-sm font-semibold flex items-center gap-1 text-decoration-none">Xem tất cả <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg></a>
+    </div>
+
+    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+        @foreach (var sanPham in sanPhamsMoi)
+        {
+            var hinhAnh = string.IsNullOrWhiteSpace(sanPham.HinhAnh) ? anhDuPhong : sanPham.HinhAnh;
+            <article class="bg-white rounded-xl p-3 shadow-sm border border-slate-100 group hover:shadow-md transition-shadow">
+                <div class="aspect-square bg-slate-50 rounded-lg mb-3 overflow-hidden relative">
+                    <img src="@hinhAnh" alt="@sanPham.Ten" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                </div>
+                <div class="text-xs text-slate-500 mb-1">@sanPham.DanhMuc?.Ten</div>
+                <h3 class="text-sm font-semibold text-slate-800 line-clamp-2 mb-3 group-hover:text-brand-600 h-10">@sanPham.Ten</h3>
+                <div class="flex items-end justify-between gap-2">
+                    <div>
+                        <div class="text-base font-bold text-brand-600">@sanPham.GiaBan.ToString("N0")đ</div>
+                        <div class="text-xs text-slate-400">Còn @sanPham.TonKho @sanPham.DonVi</div>
+                    </div>
+                    <button type="button" class="cart-add-button bg-slate-50 text-slate-500 hover:bg-brand-500 hover:text-white w-9 h-9 rounded-full flex items-center justify-center transition-colors border-0"
+                            data-id="@sanPham.Id" data-ma="@sanPham.Ma" data-ten="@sanPham.Ten" data-gia="@sanPham.GiaBan" data-hinh="@hinhAnh" data-donvi="@sanPham.DonVi" data-tonkho="@sanPham.TonKho" aria-label="Thêm @sanPham.Ten vào giỏ hàng">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v12m6-6H6"></path></svg>
+                    </button>
+                </div>
+            </article>
+        }
+    </div>
+</section>
+
+<section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-12" id="san-pham-ban-chay">
+    <div class="flex items-center justify-between mb-6">
+        <h2 class="text-2xl font-black text-slate-900">Sản phẩm bán chạy</h2>
+        <a href="/Home/TimKiem" class="text-brand-600 hover:text-brand-700 text-sm font-semibold flex items-center gap-1 text-decoration-none">Xem tất cả <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg></a>
+    </div>
+
+    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+        @foreach (var sanPham in sanPhamsBanChay)
+        {
+            var hinhAnh = string.IsNullOrWhiteSpace(sanPham.HinhAnh) ? anhDuPhong : sanPham.HinhAnh;
+            <article class="bg-white rounded-xl p-3 shadow-sm border border-slate-100 group hover:shadow-md transition-shadow relative">
+                <div class="absolute top-2 right-2 bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full z-10">HOT</div>
+                <div class="aspect-square bg-slate-50 rounded-lg mb-3 overflow-hidden relative">
+                    <img src="@hinhAnh" alt="@sanPham.Ten" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                </div>
+                <div class="text-xs text-slate-500 mb-1">@sanPham.DanhMuc?.Ten</div>
+                <h3 class="text-sm font-semibold text-slate-800 line-clamp-2 mb-3 group-hover:text-brand-600 h-10">@sanPham.Ten</h3>
+                <div class="flex items-end justify-between gap-2">
+                    <div>
+                        <div class="text-base font-bold text-brand-600">@sanPham.GiaBan.ToString("N0")đ</div>
+                        <div class="text-xs text-slate-400">Còn @sanPham.TonKho @sanPham.DonVi</div>
+                    </div>
+                    <button type="button" class="cart-add-button bg-slate-50 text-slate-500 hover:bg-brand-500 hover:text-white w-9 h-9 rounded-full flex items-center justify-center transition-colors border-0"
+                            data-id="@sanPham.Id" data-ma="@sanPham.Ma" data-ten="@sanPham.Ten" data-gia="@sanPham.GiaBan" data-hinh="@hinhAnh" data-donvi="@sanPham.DonVi" data-tonkho="@sanPham.TonKho" aria-label="Thêm @sanPham.Ten vào giỏ hàng">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v12m6-6H6"></path></svg>
+                    </button>
+                </div>
+            </article>
+        }
+    </div>
+</section>
+
+<section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-16 mb-8">
+    <div class="bg-slate-900 rounded-2xl overflow-hidden relative shadow-xl">
+        <div class="absolute inset-0 bg-brand-600/10 mix-blend-overlay"></div>
+        <div class="relative p-8 md:p-12 flex flex-col md:flex-row items-center justify-between gap-8">
+            <div class="text-center md:text-left flex-1">
+                <h2 class="text-2xl md:text-3xl font-black text-white mb-2">Trở thành thành viên MiniStop</h2>
+                <p class="text-slate-300">Đăng ký ngay để nhận ưu đãi độc quyền, tích điểm mỗi lần mua và nhận quà tặng sinh nhật.</p>
+            </div>
+            <div class="flex gap-4 w-full md:w-auto shrink-0">
+                <a href="/DangKy" class="flex-1 md:flex-none text-center bg-brand-500 hover:bg-brand-400 text-white px-6 py-3 rounded-full font-bold transition-colors shadow-lg shadow-brand-500/30 text-decoration-none">Đăng ký ngay</a>
+                <a href="/DangNhap" class="flex-1 md:flex-none text-center bg-white/10 hover:bg-white/20 text-white border border-white/20 px-6 py-3 rounded-full font-bold transition-colors backdrop-blur-md text-decoration-none">Đăng nhập</a>
+            </div>
+        </div>
+    </div>
+</section>
