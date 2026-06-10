@@ -9,6 +9,9 @@ public class KhuyenMai
     [Required, StringLength(150)]
     public string Ten { get; set; } = string.Empty;
 
+    [StringLength(50)]
+    public string Ma { get; set; } = string.Empty;
+
     [Range(0, 100)]
     public decimal PhanTramGiam { get; set; }
 

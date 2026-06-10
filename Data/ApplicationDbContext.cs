@@ -17,6 +17,8 @@ public class ApplicationDbContext : DbContext
     public DbSet<KhuyenMai> KhuyenMais => Set<KhuyenMai>();
     public DbSet<DonHang> DonHangs => Set<DonHang>();
     public DbSet<ChiTietDonHang> ChiTietDonHangs => Set<ChiTietDonHang>();
+    public DbSet<GioHang> GioHangs => Set<GioHang>();
+    public DbSet<ChiTietGioHang> ChiTietGioHangs => Set<ChiTietGioHang>();
     public DbSet<CaLamViec> CaLamViecs => Set<CaLamViec>();
     public DbSet<PhanCaNhanVien> PhanCaNhanViens => Set<PhanCaNhanVien>();
 
@@ -54,6 +56,32 @@ public class ApplicationDbContext : DbContext
             .HasOne(oi => oi.SanPham)
             .WithMany()
             .HasForeignKey(oi => oi.SanPhamId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<GioHang>()
+            .HasIndex(g => g.KhachHangId)
+            .IsUnique();
+
+        modelBuilder.Entity<GioHang>()
+            .HasOne(g => g.KhachHang)
+            .WithMany()
+            .HasForeignKey(g => g.KhachHangId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<ChiTietGioHang>()
+            .HasIndex(c => new { c.GioHangId, c.SanPhamId })
+            .IsUnique();
+
+        modelBuilder.Entity<ChiTietGioHang>()
+            .HasOne(c => c.GioHang)
+            .WithMany(g => g.ChiTiet)
+            .HasForeignKey(c => c.GioHangId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<ChiTietGioHang>()
+            .HasOne(c => c.SanPham)
+            .WithMany()
+            .HasForeignKey(c => c.SanPhamId)
             .OnDelete(DeleteBehavior.Restrict);
 
         modelBuilder.Entity<PhanCaNhanVien>()

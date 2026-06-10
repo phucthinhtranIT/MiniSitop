@@ -1,5 +1,12 @@
+@model GioHang
 @{
     ViewData["Title"] = "Giỏ hàng";
+    var chiTiet = Model.ChiTiet.OrderBy(c => c.Id).ToList();
+    var khuyenMai = ViewBag.KhuyenMai as KhuyenMai;
+    var tongTien = chiTiet.Sum(c => c.SoLuong * (c.SanPham?.GiaBan ?? 0));
+    var tienGiam = khuyenMai == null ? 0m : Math.Round(tongTien * khuyenMai.PhanTramGiam / 100m, 0);
+    var tongSauGiam = tongTien - tienGiam;
+    const string anhDuPhong = "https://images.unsplash.com/photo-1601598851547-4302969d0614?auto=format&fit=crop&w=600&q=80";
 }
 
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8">
@@ -7,41 +14,120 @@
         <div>
             <p class="text-sm font-semibold text-brand-600">MiniStop</p>
             <h1 class="text-3xl font-black text-slate-900">Giỏ hàng của bạn</h1>
-            <p class="mt-2 text-slate-500">Kiểm tra sản phẩm, điều chỉnh số lượng và chuẩn bị tạo đơn hàng.</p>
         </div>
         <a href="/Home/TimKiem" class="inline-flex items-center justify-center rounded-full border border-slate-200 bg-white px-5 py-2.5 text-sm font-bold text-slate-700 hover:border-brand-300 hover:text-brand-600 text-decoration-none">
             Tiếp tục mua hàng
         </a>
     </div>
 
-    <div id="emptyCart" class="hidden rounded-2xl border border-slate-100 bg-white p-10 text-center shadow-sm">
-        <h2 class="text-xl font-bold text-slate-900">Giỏ hàng đang trống</h2>
-        <p class="mt-2 text-slate-500">Bạn có thể thêm sản phẩm từ trang chủ hoặc trang tìm kiếm.</p>
-        <a href="/" class="mt-6 inline-flex rounded-full bg-brand-600 px-6 py-3 font-bold text-white hover:bg-brand-700 text-decoration-none">Về trang chủ</a>
-    </div>
+    @if (TempData["ThongBaoGioHang"] is string thongBao)
+    {
+        <div class="mb-6 rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm font-semibold text-sky-700">@thongBao</div>
+    }
 
-    <div id="cartContent" class="grid gap-6 lg:grid-cols-[1fr_360px]">
-        <section id="cartItems" class="space-y-4"></section>
+    @if (!chiTiet.Any())
+    {
+        <div class="rounded-2xl border border-slate-100 bg-white p-10 text-center shadow-sm">
+            <h2 class="text-xl font-bold text-slate-900">Giỏ hàng đang trống</h2>
+            <p class="mt-2 text-slate-500">Bạn có thể thêm sản phẩm từ trang chủ hoặc trang tìm kiếm.</p>
+            <a href="/" class="mt-6 inline-flex rounded-full bg-brand-600 px-6 py-3 font-bold text-white hover:bg-brand-700 text-decoration-none">Về trang chủ</a>
+        </div>
+    }
+    else
+    {
+        <div class="grid gap-6 lg:grid-cols-[1fr_360px]">
+            <section class="space-y-4">
+                @foreach (var item in chiTiet)
+                {
+                    var sanPham = item.SanPham;
+                    var hinhAnh = string.IsNullOrWhiteSpace(sanPham?.HinhAnh) ? anhDuPhong : sanPham.HinhAnh;
+                    var thanhTien = item.SoLuong * (sanPham?.GiaBan ?? 0);
 
-        <aside class="h-fit rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
-            <h2 class="text-lg font-bold text-slate-900">Tóm tắt đơn hàng</h2>
-            <div class="mt-5 space-y-3 border-b border-slate-100 pb-5 text-sm">
-                <div class="flex justify-between text-slate-500">
-                    <span>Tạm tính</span>
-                    <span id="cartTotal" class="font-bold text-slate-900">0đ</span>
+                    <article class="grid grid-cols-[84px_1fr] gap-4 rounded-xl border border-slate-100 bg-white p-3 shadow-sm md:grid-cols-[96px_1fr_auto]">
+                        <img src="@hinhAnh" alt="@sanPham?.Ten" class="h-20 w-20 rounded-lg object-cover md:h-24 md:w-24" />
+                        <div class="min-w-0">
+                            <div class="text-xs text-slate-400">@sanPham?.Ma</div>
+                            <h2 class="mt-1 line-clamp-2 font-bold text-slate-900">@sanPham?.Ten</h2>
+                            <div class="mt-1 text-sm text-slate-500">@((sanPham?.GiaBan ?? 0).ToString("N0"))đ / @(sanPham?.DonVi ?? "sp")</div>
+                            <form method="post" action="/GioHang/CapNhat" class="mt-3 flex items-center gap-2">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="chiTietId" value="@item.Id" />
+                                <button type="submit" name="soLuong" value="@(item.SoLuong - 1)" class="h-8 w-8 rounded-full border border-slate-200 text-slate-600 hover:border-brand-400 hover:text-brand-600">-</button>
+                                <input name="soLuong" value="@item.SoLuong" min="1" max="@(sanPham?.TonKho ?? item.SoLuong)" class="h-8 w-14 rounded-lg border border-slate-200 text-center text-sm font-semibold" />
+                                <button type="submit" name="soLuong" value="@(item.SoLuong + 1)" class="h-8 w-8 rounded-full border border-slate-200 text-slate-600 hover:border-brand-400 hover:text-brand-600">+</button>
+                                <span class="text-xs text-slate-400">Tối đa @(sanPham?.TonKho ?? 0)</span>
+                            </form>
+                        </div>
+                        <div class="col-span-2 flex items-center justify-between border-t border-slate-100 pt-3 md:col-span-1 md:block md:border-t-0 md:pt-0 md:text-right">
+                            <div class="font-bold text-brand-600">@thanhTien.ToString("N0")đ</div>
+                            <form method="post" action="/GioHang/Xoa" class="mt-0 md:mt-4">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="chiTietId" value="@item.Id" />
+                                <button type="submit" class="text-sm font-semibold text-red-500 hover:text-red-600 border-0 bg-transparent">Xóa</button>
+                            </form>
+                        </div>
+                    </article>
+                }
+            </section>
+
+            <aside class="h-fit rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+                <h2 class="text-lg font-bold text-slate-900">Tóm tắt giỏ hàng</h2>
+                <div class="mt-5 space-y-3 border-b border-slate-100 pb-5 text-sm">
+                    <div class="flex justify-between text-slate-500">
+                        <span>Tạm tính</span>
+                        <span class="font-bold text-slate-900">@tongTien.ToString("N0")đ</span>
+                    </div>
+                    <div class="flex justify-between text-slate-500">
+                        <span>Khuyến mãi</span>
+                        <span class="font-bold text-emerald-600">-@tienGiam.ToString("N0")đ</span>
+                    </div>
+                    <div class="flex justify-between text-base">
+                        <span class="font-bold text-slate-900">Tổng cộng</span>
+                        <span class="font-black text-brand-600">@tongSauGiam.ToString("N0")đ</span>
+                    </div>
                 </div>
-                <div class="flex justify-between text-slate-500">
-                    <span>Khuyến mãi</span>
-                    <span>Áp dụng sau</span>
+
+                <div class="mt-5 rounded-xl border border-slate-100 bg-slate-50 p-4">
+                    <div class="text-sm font-bold text-slate-900">Mã giảm giá</div>
+                    @if (khuyenMai != null)
+                    {
+                        <div class="mt-2 rounded-lg bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700">
+                            Đang áp dụng @khuyenMai.Ma - giảm @khuyenMai.PhanTramGiam.ToString("N0")%
+                        </div>
+                        <form method="post" action="/GioHang/BoKhuyenMai" class="mt-3">
+                            @Html.AntiForgeryToken()
+                            <button type="submit" class="w-full rounded-lg border border-emerald-200 bg-white px-4 py-2 text-sm font-bold text-emerald-700 hover:bg-emerald-50">
+                                Bỏ mã giảm giá
+                            </button>
+                        </form>
+                    }
+                    else
+                    {
+                        <form method="post" action="/GioHang/ApDungKhuyenMai" class="mt-3 flex gap-2">
+                            @Html.AntiForgeryToken()
+                            <input name="maKhuyenMai" maxlength="50" placeholder="Nhập mã" class="min-w-0 flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold uppercase outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/10" />
+                            <button type="submit" class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-bold text-white hover:bg-slate-800">
+                                Áp dụng
+                            </button>
+                        </form>
+                        <div class="mt-2 text-xs text-slate-400">Mã thử hiện có: CUOITUAN, MUA2TANG1.</div>
+                    }
                 </div>
-            </div>
-            <button id="checkoutCart" type="button" class="mt-5 w-full rounded-xl bg-brand-600 px-5 py-3 font-bold text-white hover:bg-brand-700">
-                Xác nhận giỏ hàng
-            </button>
-            <button id="clearCart" type="button" class="mt-3 w-full rounded-xl border border-slate-200 bg-white px-5 py-3 font-bold text-slate-600 hover:border-red-200 hover:text-red-500">
-                Xóa toàn bộ
-            </button>
-            <p class="mt-4 text-xs leading-5 text-slate-400">Phần này đang giữ giỏ hàng ở trình duyệt. Khi bạn cần tạo đơn thật, mình sẽ nối tiếp vào bảng DonHang và ChiTietDonHang.</p>
-        </aside>
-    </div>
+
+                <form method="post" action="/GioHang/XacNhan" class="mt-5">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="w-full rounded-xl bg-brand-600 px-5 py-3 font-bold text-white hover:bg-brand-700">
+                        Tạo đơn hàng
+                    </button>
+                </form>
+
+                <form method="post" action="/GioHang/XoaTatCa" class="mt-3">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="w-full rounded-xl border border-slate-200 bg-white px-5 py-3 font-bold text-slate-600 hover:border-red-200 hover:text-red-500">
+                        Xóa toàn bộ
+                    </button>
+                </form>
+            </aside>
+        </div>
+    }
 </div>

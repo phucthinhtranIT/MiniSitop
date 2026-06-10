@@ -107,8 +107,8 @@ static void SeedData(ApplicationDbContext db)
 
     var promotions = new[]
     {
-        new KhuyenMai { Ten = "Khuyen mai cuoi tuan", PhanTramGiam = 10m, NgayBatDau = DateTime.UtcNow.AddDays(-5), NgayKetThuc = DateTime.UtcNow.AddDays(10) },
-        new KhuyenMai { Ten = "Mua 2 tang 1", PhanTramGiam = 15m, NgayBatDau = DateTime.UtcNow, NgayKetThuc = DateTime.UtcNow.AddDays(20) }
+        new KhuyenMai { Ten = "Khuyen mai cuoi tuan", Ma = "CUOITUAN", PhanTramGiam = 10m, NgayBatDau = DateTime.UtcNow.AddDays(-5), NgayKetThuc = DateTime.UtcNow.AddDays(10) },
+        new KhuyenMai { Ten = "Mua 2 tang 1", Ma = "MUA2TANG1", PhanTramGiam = 15m, NgayBatDau = DateTime.UtcNow, NgayKetThuc = DateTime.UtcNow.AddDays(20) }
     };
     db.KhuyenMais.AddRange(promotions);
     db.SaveChanges();

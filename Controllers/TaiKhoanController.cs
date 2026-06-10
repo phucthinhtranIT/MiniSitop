@@ -30,6 +30,26 @@ namespace WebQLministop.Controllers
             return View(khachHang);
         }
 
+        [HttpGet]
+        public async Task<IActionResult> LichSuDonHang(int? donHangId)
+        {
+            var khachHangId = HttpContext.Session.GetInt32("KhachHangId");
+            if (khachHangId == null)
+            {
+                return RedirectToAction("Index", "DangNhap");
+            }
+
+            var donHangs = await _context.DonHangs
+                .Include(d => d.ChiTiet)
+                .ThenInclude(c => c.SanPham)
+                .Where(d => d.KhachHangId == khachHangId.Value)
+                .OrderByDescending(d => d.NgayDat)
+                .ToListAsync();
+
+            ViewBag.DonHangChiTiet = donHangId == null ? null : donHangs.FirstOrDefault(d => d.Id == donHangId.Value);
+            return View(donHangs);
+        }
+
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> CapNhatThongTin(string hoTen, string? email, string? dienThoai, IFormFile? anhDaiDien)

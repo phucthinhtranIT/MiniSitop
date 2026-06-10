@@ -1,0 +1,110 @@
+@model List<DonHang>
+@{
+    ViewData["Title"] = "Lịch sử mua hàng";
+    var donHangChiTiet = ViewBag.DonHangChiTiet as DonHang;
+}
+
+<div class="mx-auto mt-8 max-w-6xl px-4 sm:px-6 lg:px-8">
+    <div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+            <h1 class="text-3xl font-black text-slate-900">Lịch sử mua hàng</h1>
+            <p class="mt-2 text-slate-500">Theo dõi trạng thái các đơn hàng đã tạo.</p>
+        </div>
+        <a href="/GioHang" class="inline-flex items-center justify-center rounded-full border border-slate-200 bg-white px-5 py-2.5 text-sm font-bold text-slate-700 hover:border-brand-300 hover:text-brand-600 text-decoration-none">
+            Xem giỏ hàng
+        </a>
+    </div>
+
+    @if (!Model.Any())
+    {
+        <div class="rounded-2xl border border-slate-100 bg-white p-10 text-center shadow-sm">
+            <h2 class="text-xl font-bold text-slate-900">Chưa có đơn hàng</h2>
+            <p class="mt-2 text-slate-500">Khi bạn tạo đơn hàng từ giỏ hàng, lịch sử sẽ hiển thị tại đây.</p>
+            <a href="/" class="mt-6 inline-flex rounded-full bg-brand-600 px-6 py-3 font-bold text-white hover:bg-brand-700 text-decoration-none">Mua hàng ngay</a>
+        </div>
+    }
+    else
+    {
+        <div class="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
+            <div class="hidden grid-cols-[1fr_160px_160px_150px] gap-4 border-b border-slate-100 bg-slate-50 px-5 py-3 text-xs font-bold uppercase tracking-wide text-slate-400 md:grid">
+                <span>Đơn hàng</span>
+                <span>Trạng thái</span>
+                <span>Tổng tiền</span>
+                <span class="text-right">Thao tác</span>
+            </div>
+
+            <div class="divide-y divide-slate-100">
+                @foreach (var donHang in Model)
+                {
+                    var dangMoChiTiet = donHangChiTiet?.Id == donHang.Id;
+                    var duongDanChiTiet = dangMoChiTiet ? "/TaiKhoan/LichSuDonHang" : $"/TaiKhoan/LichSuDonHang?donHangId={donHang.Id}";
+                    var nhanNutChiTiet = dangMoChiTiet ? "Đóng chi tiết" : "Xem chi tiết";
+
+                    <div class="grid gap-3 px-5 py-4 md:grid-cols-[1fr_160px_160px_150px] md:items-center">
+                        <div>
+                            <div class="font-bold text-slate-900">Đơn hàng #@donHang.Id</div>
+                            <div class="mt-1 text-xs text-slate-500">@donHang.ChiTiet.Count sản phẩm</div>
+                        </div>
+                        <div>
+                            <span class="rounded-full bg-brand-50 px-3 py-1 text-xs font-bold text-brand-700">@donHang.TrangThai</span>
+                        </div>
+                        <div class="font-bold text-slate-900">@donHang.TongTien.ToString("N0")đ</div>
+                        <div class="md:text-right">
+                            <a href="@duongDanChiTiet" class="inline-flex rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 hover:border-brand-300 hover:text-brand-600 text-decoration-none">
+                                @nhanNutChiTiet
+                            </a>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+
+    @if (donHangChiTiet != null)
+    {
+        var tongTruocGiam = donHangChiTiet.ChiTiet.Sum(c => c.SoLuong * c.DonGia);
+        var tongGiam = donHangChiTiet.ChiTiet.Sum(c => c.TienGiam);
+
+        <section class="mt-6 overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
+            <div class="flex flex-col gap-3 border-b border-slate-100 bg-slate-50 px-5 py-4 md:flex-row md:items-center md:justify-between">
+                <div>
+                    <h2 class="text-lg font-black text-slate-900">Chi tiết đơn hàng #@donHangChiTiet.Id</h2>
+                    <div class="mt-1 text-sm text-slate-500">Ngày thanh toán: @donHangChiTiet.NgayDat.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</div>
+                </div>
+                <div class="flex flex-wrap items-center gap-2">
+                    <span class="rounded-full bg-brand-50 px-3 py-1 text-xs font-bold text-brand-700">@donHangChiTiet.TrangThai</span>
+                    <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">@donHangChiTiet.PhuongThucThanhToan</span>
+                </div>
+            </div>
+
+            <div class="divide-y divide-slate-100">
+                @foreach (var item in donHangChiTiet.ChiTiet)
+                {
+                    <div class="grid gap-3 px-5 py-4 text-sm md:grid-cols-[1fr_auto_auto] md:items-center">
+                        <div>
+                            <div class="font-bold text-slate-900">@item.SanPham?.Ten</div>
+                            <div class="mt-1 text-xs text-slate-500">@item.SanPham?.Ma</div>
+                        </div>
+                        <div class="text-slate-500 md:text-right">@item.SoLuong x @item.DonGia.ToString("N0")đ</div>
+                        <div class="font-bold text-slate-900 md:text-right">@((item.SoLuong * item.DonGia - item.TienGiam).ToString("N0"))đ</div>
+                    </div>
+                }
+            </div>
+
+            <div class="grid gap-2 border-t border-slate-100 px-5 py-4 text-sm md:ml-auto md:w-80">
+                <div class="flex justify-between text-slate-500">
+                    <span>Tạm tính</span>
+                    <span>@tongTruocGiam.ToString("N0")đ</span>
+                </div>
+                <div class="flex justify-between text-slate-500">
+                    <span>Khuyến mãi</span>
+                    <span class="font-bold text-emerald-600">-@tongGiam.ToString("N0")đ</span>
+                </div>
+                <div class="flex justify-between text-base font-black text-slate-900">
+                    <span>Tổng tiền</span>
+                    <span>@donHangChiTiet.TongTien.ToString("N0")đ</span>
+                </div>
+            </div>
+        </section>
+    }
+</div>
