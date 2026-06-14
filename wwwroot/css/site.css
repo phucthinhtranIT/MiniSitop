@@ -57,3 +57,387 @@ body {
   transform: translateY(-2px);
   box-shadow: 0 0.75rem 1.5rem rgba(16, 185, 129, 0.12) !important;
 }
+
+.manager-page-stack {
+  display: grid;
+  gap: 1.5rem;
+  padding: 1.5rem;
+}
+
+.manager-page-stack .manager-hero {
+  align-items: stretch;
+  background: linear-gradient(135deg, #1e3a5f, #2563eb);
+  border-radius: 1rem;
+  color: #fff;
+  display: grid;
+  gap: 1.25rem;
+  grid-template-columns: minmax(0, 1fr) minmax(240px, 0.35fr);
+  padding: 1.5rem;
+}
+
+.manager-page-stack .manager-hero h2,
+.manager-page-stack .page-title-row h2,
+.manager-page-stack .manager-card h3 {
+  margin: 0;
+  font-weight: 800;
+}
+
+.manager-page-stack .manager-hero p,
+.manager-page-stack .page-title-row small,
+.manager-page-stack .manager-card small {
+  color: #64748b;
+}
+
+.manager-page-stack .manager-hero p,
+.manager-page-stack .hero-panel small {
+  color: #dbeafe;
+}
+
+.manager-page-stack .hero-panel,
+.manager-page-stack .stat-card,
+.manager-page-stack .manager-card,
+.manager-page-stack .employee-card,
+.manager-page-stack .promo-card,
+.modal-card,
+.slide-panel {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 1rem;
+  box-shadow: 0 12px 34px rgba(15, 23, 42, 0.08);
+}
+
+.manager-page-stack .hero-panel {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.22);
+  display: grid;
+  gap: 0.35rem;
+  padding: 1rem;
+}
+
+.manager-page-stack .hero-panel strong {
+  color: #fff;
+  font-size: 1.75rem;
+}
+
+.manager-page-stack .stat-card,
+.manager-page-stack .manager-card,
+.manager-page-stack .employee-card,
+.manager-page-stack .promo-card {
+  padding: 1rem;
+}
+
+.manager-page-stack .stat-card p,
+.manager-page-stack .eyebrow {
+  color: #0284c7;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  margin: 0 0 0.35rem;
+  text-transform: uppercase;
+}
+
+.manager-page-stack .stat-card strong {
+  color: #0f172a;
+  display: block;
+  font-size: 1.6rem;
+  font-weight: 900;
+}
+
+.manager-page-stack .stat-icon {
+  align-items: center;
+  border-radius: 0.75rem;
+  display: inline-flex;
+  height: 2.25rem;
+  justify-content: center;
+  margin-bottom: 0.75rem;
+  width: 2.25rem;
+}
+
+.manager-page-stack .card-head,
+.modal-card .card-head,
+.slide-panel .card-head,
+.manager-page-stack .page-title-row {
+  align-items: center;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.manager-page-stack .table-wrap {
+  overflow-x: auto;
+}
+
+.manager-page-stack .manager-table {
+  border-collapse: collapse;
+  min-width: 760px;
+  width: 100%;
+}
+
+.manager-page-stack .manager-table th,
+.manager-page-stack .manager-table td {
+  border-bottom: 1px solid #e2e8f0;
+  padding: 0.8rem;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.manager-page-stack .manager-table th {
+  color: #64748b;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+}
+
+.manager-page-stack .badge,
+#invoicePanel .badge {
+  border-radius: 999px;
+  display: inline-flex;
+  font-size: 0.75rem;
+  font-weight: 800;
+  padding: 0.35rem 0.7rem;
+}
+
+.manager-page-stack .badge.success,
+#invoicePanel .badge.success {
+  background: #dcfce7;
+  color: #047857;
+}
+
+.manager-page-stack .badge.warning,
+#invoicePanel .badge.warning {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.manager-page-stack .badge.danger,
+#invoicePanel .badge.danger {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.manager-page-stack .badge.info,
+#invoicePanel .badge.info {
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
+.manager-page-stack .btn-primary,
+.manager-page-stack .btn-secondary,
+.manager-page-stack .btn-ghost,
+.manager-page-stack .btn-icon,
+.modal-shell .btn-primary,
+.modal-shell .btn-secondary,
+.modal-shell .btn-icon,
+.slide-panel .btn-primary,
+.slide-panel .btn-icon {
+  border: 0;
+  border-radius: 0.75rem;
+  font-weight: 800;
+  padding: 0.65rem 1rem;
+}
+
+.manager-page-stack .btn-primary,
+.modal-shell .btn-primary,
+.slide-panel .btn-primary {
+  background: #0284c7;
+  color: #fff;
+}
+
+.manager-page-stack .btn-secondary,
+.modal-shell .btn-secondary {
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
+.manager-page-stack .btn-ghost {
+  background: #f8fafc;
+  color: #334155;
+}
+
+.manager-page-stack .btn-icon,
+.modal-shell .btn-icon,
+.slide-panel .btn-icon {
+  background: #f1f5f9;
+  min-width: 2.25rem;
+  padding: 0.5rem;
+}
+
+.manager-page-stack .btn-icon.danger {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.manager-page-stack .filter-panel,
+.manager-page-stack .modal-grid {
+  display: grid;
+  gap: 0.9rem;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.manager-page-stack label span,
+.modal-card label span {
+  color: #475569;
+  display: block;
+  font-size: 0.82rem;
+  font-weight: 700;
+  margin-bottom: 0.35rem;
+}
+
+.manager-page-stack input,
+.manager-page-stack select,
+.manager-page-stack textarea,
+.modal-card input,
+.modal-card select,
+.modal-card textarea {
+  border: 1px solid #cbd5e1;
+  border-radius: 0.75rem;
+  padding: 0.65rem 0.8rem;
+  width: 100%;
+}
+
+.manager-page-stack .chart-bars {
+  align-items: end;
+  display: grid;
+  gap: 0.65rem;
+  grid-template-columns: repeat(7, 1fr);
+  min-height: 180px;
+}
+
+.manager-page-stack .chart-bars span {
+  align-items: end;
+  background: linear-gradient(180deg, #38bdf8, #0284c7);
+  border-radius: 999px 999px 0.5rem 0.5rem;
+  display: flex;
+  height: var(--h);
+  justify-content: center;
+  min-height: 1.25rem;
+  position: relative;
+}
+
+.manager-page-stack .chart-bars b {
+  bottom: -1.6rem;
+  color: #64748b;
+  font-size: 0.7rem;
+  position: absolute;
+}
+
+.manager-page-stack .rank-row,
+.manager-page-stack .alert-row,
+.manager-page-stack .timeline > div {
+  align-items: center;
+  background: #f8fafc;
+  border-radius: 0.8rem;
+  display: flex;
+  gap: 0.75rem;
+  padding: 0.8rem;
+}
+
+.manager-page-stack .alert-row.danger {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.manager-page-stack .alert-row.warning {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.manager-page-stack .alert-row.info {
+  background: #e0f2fe;
+  color: #075985;
+}
+
+.manager-page-stack .empty-state {
+  padding: 2rem;
+  text-align: center;
+}
+
+.manager-page-stack .product-thumb,
+.manager-page-stack .employee-card span {
+  align-items: center;
+  background: #e0f2fe;
+  border-radius: 0.75rem;
+  color: #0369a1;
+  display: inline-flex;
+  font-weight: 900;
+  height: 2.5rem;
+  justify-content: center;
+  width: 2.5rem;
+}
+
+.manager-page-stack .pagination-bar {
+  display: flex;
+  gap: 0.4rem;
+  justify-content: flex-end;
+  padding-top: 1rem;
+}
+
+.manager-page-stack .pagination-bar button {
+  border: 1px solid #cbd5e1;
+  border-radius: 0.65rem;
+  min-width: 2.25rem;
+  padding: 0.45rem;
+}
+
+.manager-page-stack .pagination-bar .active {
+  background: #0284c7;
+  color: #fff;
+}
+
+.modal-shell {
+  align-items: center;
+  background: rgba(15, 23, 42, 0.5);
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  padding: 1rem;
+  position: fixed;
+  z-index: 100;
+}
+
+.modal-card {
+  max-width: 760px;
+  padding: 1rem;
+  width: min(100%, 760px);
+}
+
+.slide-panel {
+  height: 100vh;
+  max-width: 420px;
+  padding: 1rem;
+  position: fixed;
+  right: 0;
+  top: 0;
+  transition: transform 0.2s ease;
+  width: min(100%, 420px);
+  z-index: 90;
+}
+
+.translate-x-full {
+  transform: translateX(100%);
+}
+
+html.dark .manager-page-stack .manager-card,
+html.dark .manager-page-stack .stat-card,
+html.dark .manager-page-stack .employee-card,
+html.dark .manager-page-stack .promo-card,
+html.dark .modal-card,
+html.dark .slide-panel {
+  background: #111827;
+  border-color: #334155;
+}
+
+html.dark .manager-page-stack .rank-row,
+html.dark .manager-page-stack .timeline > div {
+  background: #1f2937;
+}
+
+@media (max-width: 768px) {
+  .manager-page-stack {
+    padding: 1rem;
+  }
+
+  .manager-page-stack .manager-hero {
+    grid-template-columns: 1fr;
+  }
+}
