@@ -8,6 +8,15 @@
     var danhMucDangChon = ViewData["DanhMuc"] as string;
     var sapXep = ViewData["SapXep"] as string;
     const string anhDuPhong = "https://images.unsplash.com/photo-1601598851547-4302969d0614?auto=format&fit=crop&w=600&q=80";
+
+    string HienThiDanhMuc(string? ten) => ten switch
+    {
+        "Do uong" => "Đồ uống",
+        "Banh keo" => "Bánh kẹo",
+        "Thuc pham" => "Thực phẩm",
+        "Gia dung" => "Gia dụng",
+        _ => string.IsNullOrWhiteSpace(ten) ? "Chưa phân loại" : ten
+    };
 }
 
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8">
@@ -42,7 +51,7 @@
                         <option value="">Tất cả danh mục</option>
                         @foreach (var danhMuc in danhMucs)
                         {
-                            <option value="@danhMuc.Ten" selected="@(danhMuc.Ten == danhMucDangChon)">@danhMuc.Ten</option>
+                            <option value="@danhMuc.Ten" selected="@(danhMuc.Ten == danhMucDangChon)">@HienThiDanhMuc(danhMuc.Ten)</option>
                         }
                     </select>
                 </div>
@@ -91,7 +100,7 @@
                             <div class="aspect-square bg-slate-50 rounded-lg mb-3 overflow-hidden relative">
                                 <img src="@hinhAnh" alt="@sanPham.Ten" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                             </div>
-                            <div class="text-xs text-slate-500 mb-1">@sanPham.DanhMuc?.Ten</div>
+                            <div class="text-xs text-slate-500 mb-1">@HienThiDanhMuc(sanPham.DanhMuc?.Ten)</div>
                             <h3 class="text-sm font-semibold text-slate-800 line-clamp-2 mb-3 group-hover:text-brand-600 h-10">@sanPham.Ten</h3>
                             <div class="flex items-end justify-between gap-2">
                                 <div>

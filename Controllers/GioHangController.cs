@@ -8,6 +8,9 @@ namespace WebQLministop.Controllers
     public class GioHangController : Controller
     {
         private const string SessionKhuyenMaiId = "KhuyenMaiId";
+        private const string SessionDiemThuongSuDung = "DiemThuongSuDung";
+        private const decimal GiaTriMoiDiem = 1m;
+        private const decimal SoTienMoiDiemThuong = 100m;
         private readonly ApplicationDbContext _context;
 
         public GioHangController(ApplicationDbContext context)
@@ -26,11 +29,19 @@ namespace WebQLministop.Controllers
             }
 
             var gioHang = await LayGioHang(khachHangId.Value);
-            ViewBag.KhuyenMai = await LayKhuyenMaiDangApDung();
+            var khuyenMai = await LayKhuyenMaiDangApDung();
+            var khachHang = await _context.KhachHangs.FirstOrDefaultAsync(k => k.Id == khachHangId.Value && k.KichHoat);
+            var tongSauKhuyenMai = TinhTongSauKhuyenMai(gioHang, khuyenMai);
+
+            ViewBag.KhuyenMai = khuyenMai;
+            ViewBag.DiemThuong = khachHang?.DiemThuong ?? 0;
+            ViewBag.DiemThuongSuDung = LayDiemThuongSuDungHopLe(khachHang?.DiemThuong ?? 0, tongSauKhuyenMai);
+            ViewBag.GiaTriMoiDiem = GiaTriMoiDiem;
             return View(gioHang);
         }
 
         [HttpPost]
+        [ValidateAntiForgeryToken]
         public async Task<IActionResult> Them(int sanPhamId)
         {
             var khachHangId = HttpContext.Session.GetInt32("KhachHangId");
@@ -178,6 +189,56 @@ namespace WebQLministop.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ApDungDiemThuong(int diemSuDung)
+        {
+            var khachHangId = HttpContext.Session.GetInt32("KhachHangId");
+            if (khachHangId == null)
+            {
+                TempData["ThongBaoDangNhap"] = "Vui lòng đăng nhập để sử dụng điểm tích lũy.";
+                return RedirectToAction("Index", "DangNhap");
+            }
+
+            var khachHang = await _context.KhachHangs.FirstOrDefaultAsync(k => k.Id == khachHangId.Value && k.KichHoat);
+            if (khachHang == null)
+            {
+                TempData["ThongBaoDangNhap"] = "Vui lòng đăng nhập lại để sử dụng điểm tích lũy.";
+                return RedirectToAction("Index", "DangNhap");
+            }
+
+            var gioHang = await LayGioHang(khachHangId.Value);
+            if (!gioHang.ChiTiet.Any())
+            {
+                HttpContext.Session.Remove(SessionDiemThuongSuDung);
+                TempData["ThongBaoGioHang"] = "Giỏ hàng đang trống, chưa thể dùng điểm tích lũy.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            var tongSauKhuyenMai = TinhTongSauKhuyenMai(gioHang, await LayKhuyenMaiDangApDung());
+            var diemToiDa = Math.Min(khachHang.DiemThuong, (int)Math.Floor(tongSauKhuyenMai / GiaTriMoiDiem));
+            if (diemToiDa <= 0)
+            {
+                HttpContext.Session.Remove(SessionDiemThuongSuDung);
+                TempData["ThongBaoGioHang"] = "Bạn chưa có điểm tích lũy khả dụng cho đơn hàng này.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            var diemHopLe = Math.Clamp(diemSuDung, 1, diemToiDa);
+            HttpContext.Session.SetInt32(SessionDiemThuongSuDung, diemHopLe);
+            TempData["ThongBaoGioHang"] = $"Đã áp dụng {diemHopLe:N0} điểm tích lũy, giảm {(diemHopLe * GiaTriMoiDiem):N0}đ.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public IActionResult BoDiemThuong()
+        {
+            HttpContext.Session.Remove(SessionDiemThuongSuDung);
+            TempData["ThongBaoGioHang"] = "Đã bỏ điểm tích lũy khỏi giỏ hàng.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
         public async Task<IActionResult> XacNhan()
         {
             var khachHangId = HttpContext.Session.GetInt32("KhachHangId");
@@ -232,15 +293,29 @@ namespace WebQLministop.Controllers
                 return RedirectToAction(nameof(Index));
             }
 
+            var khachHang = await _context.KhachHangs.FirstOrDefaultAsync(k => k.Id == khachHangId.Value && k.KichHoat);
+            if (khachHang == null)
+            {
+                TempData["ThongBaoDangNhap"] = "Vui lòng đăng nhập lại để tạo đơn hàng.";
+                return RedirectToAction("Index", "DangNhap");
+            }
+
             var phanTramGiam = khuyenMai?.PhanTramGiam ?? 0m;
+            var tongTienGoc = gioHang.ChiTiet.Sum(item => item.SoLuong * (item.SanPham?.GiaBan ?? 0m));
+            var tongSauKhuyenMai = TinhTongSauKhuyenMai(gioHang, khuyenMai);
+            var diemSuDung = LayDiemThuongSuDungHopLe(khachHang.DiemThuong, tongSauKhuyenMai);
+            var tienGiamTuDiem = diemSuDung * GiaTriMoiDiem;
             var donHang = new DonHang
             {
                 KhachHangId = khachHangId.Value,
                 NhanVienId = nhanVien.Id,
                 NgayDat = DateTime.UtcNow,
-                TrangThai = "ChoXuLy",
+                TrangThai = "ThanhCong",
                 PhuongThucThanhToan = "TienMat",
                 TongTien = 0m,
+                DiemThuongSuDung = diemSuDung,
+                TienGiamDiem = tienGiamTuDiem,
+                MaKhuyenMaiDaDung = khuyenMai?.Ma,
                 ChiTiet = gioHang.ChiTiet.Select(item => new ChiTietDonHang
                 {
                     SanPhamId = item.SanPhamId,
@@ -250,7 +325,13 @@ namespace WebQLministop.Controllers
                 }).ToList()
             };
 
+            ApDungTienGiamTuDiem(donHang.ChiTiet, tienGiamTuDiem);
             donHang.TongTien = donHang.ChiTiet.Sum(item => item.SoLuong * item.DonGia - item.TienGiam);
+            donHang.TienGiamKhuyenMai = donHang.ChiTiet.Sum(item => Math.Round(item.SoLuong * item.DonGia * phanTramGiam / 100m, 0));
+            var diemCong = (int)Math.Floor(tongTienGoc / SoTienMoiDiemThuong);
+            donHang.DiemThuongCong = diemCong;
+            khachHang.DiemThuong -= diemSuDung;
+            khachHang.DiemThuong += diemCong;
 
             foreach (var item in gioHang.ChiTiet)
             {
@@ -264,8 +345,10 @@ namespace WebQLministop.Controllers
             _context.ChiTietGioHangs.RemoveRange(gioHang.ChiTiet);
             await _context.SaveChangesAsync();
             HttpContext.Session.Remove(SessionKhuyenMaiId);
+            HttpContext.Session.Remove(SessionDiemThuongSuDung);
+            HttpContext.Session.SetInt32("KhachHangDiemThuong", khachHang.DiemThuong);
 
-            TempData["ThongBaoGioHang"] = $"Đã tạo đơn hàng #{donHang.Id} thành công. Tổng tiền: {donHang.TongTien:N0}đ.";
+            TempData["ThongBaoGioHang"] = $"Đã tạo đơn hàng #{donHang.Id} thành công. Tổng tiền: {donHang.TongTien:N0}đ. Bạn được cộng {diemCong:N0} điểm tích lũy.";
             return RedirectToAction(nameof(Index));
         }
 
@@ -330,6 +413,59 @@ namespace WebQLministop.Controllers
                 k.KichHoat &&
                 k.NgayBatDau <= hienTai &&
                 k.NgayKetThuc >= hienTai);
+        }
+
+        private int LayDiemThuongSuDungHopLe(int diemThuong, decimal tongSauKhuyenMai)
+        {
+            var diemTrongSession = HttpContext.Session.GetInt32(SessionDiemThuongSuDung) ?? 0;
+            var diemToiDaTheoDon = Math.Max(0, (int)Math.Floor(tongSauKhuyenMai / GiaTriMoiDiem));
+            var diemToiDa = Math.Min(diemThuong, diemToiDaTheoDon);
+            var diemHopLe = Math.Clamp(diemTrongSession, 0, diemToiDa);
+
+            if (diemHopLe != diemTrongSession)
+            {
+                if (diemHopLe <= 0)
+                {
+                    HttpContext.Session.Remove(SessionDiemThuongSuDung);
+                }
+                else
+                {
+                    HttpContext.Session.SetInt32(SessionDiemThuongSuDung, diemHopLe);
+                }
+            }
+
+            return diemHopLe;
+        }
+
+        private static decimal TinhTongSauKhuyenMai(GioHang gioHang, KhuyenMai? khuyenMai)
+        {
+            var tongTien = gioHang.ChiTiet.Sum(c => c.SoLuong * (c.SanPham?.GiaBan ?? 0m));
+            var tienGiam = khuyenMai == null ? 0m : Math.Round(tongTien * khuyenMai.PhanTramGiam / 100m, 0);
+            return Math.Max(0m, tongTien - tienGiam);
+        }
+
+        private static void ApDungTienGiamTuDiem(List<ChiTietDonHang> chiTiet, decimal tienGiamTuDiem)
+        {
+            if (tienGiamTuDiem <= 0 || chiTiet.Count == 0) return;
+
+            var tongConLai = chiTiet.Sum(item => item.SoLuong * item.DonGia - item.TienGiam);
+            if (tongConLai <= 0) return;
+
+            var tienCanGiam = Math.Min(tienGiamTuDiem, tongConLai);
+            var daPhanBo = 0m;
+
+            for (var i = 0; i < chiTiet.Count; i++)
+            {
+                var item = chiTiet[i];
+                var thanhTienSauKhuyenMai = item.SoLuong * item.DonGia - item.TienGiam;
+                var tienGiamThem = i == chiTiet.Count - 1
+                    ? tienCanGiam - daPhanBo
+                    : Math.Round(tienCanGiam * thanhTienSauKhuyenMai / tongConLai, 0);
+
+                tienGiamThem = Math.Clamp(tienGiamThem, 0m, thanhTienSauKhuyenMai);
+                item.TienGiam += tienGiamThem;
+                daPhanBo += tienGiamThem;
+            }
         }
     }
 }

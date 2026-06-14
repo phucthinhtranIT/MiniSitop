@@ -28,6 +28,8 @@ public class ApplicationDbContext : DbContext
 
         modelBuilder.Entity<NhanVien>().Property(e => e.Luong).HasPrecision(18, 2);
         modelBuilder.Entity<DonHang>().Property(o => o.TongTien).HasPrecision(18, 2);
+        modelBuilder.Entity<DonHang>().Property(o => o.TienGiamDiem).HasPrecision(18, 2);
+        modelBuilder.Entity<DonHang>().Property(o => o.TienGiamKhuyenMai).HasPrecision(18, 2);
         modelBuilder.Entity<ChiTietDonHang>().Property(oi => oi.DonGia).HasPrecision(18, 2);
         modelBuilder.Entity<ChiTietDonHang>().Property(oi => oi.TienGiam).HasPrecision(18, 2);
         modelBuilder.Entity<SanPham>().Property(p => p.GiaVon).HasPrecision(18, 2);

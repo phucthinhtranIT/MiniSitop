@@ -1,4 +1,4 @@
-function hienThiThongBaoGioHang(noiDung) {
+﻿function hienThiThongBaoGioHang(noiDung) {
     let thongBao = document.getElementById("cartToast");
     if (!thongBao) {
         thongBao = document.createElement("div");
@@ -34,6 +34,10 @@ async function capNhatSoLuongGio() {
     }
 }
 
+function layAntiForgeryToken() {
+    return document.querySelector('input[name="__RequestVerificationToken"]')?.value || "";
+}
+
 async function themSanPhamVaoGio(sanPhamId) {
     const body = new URLSearchParams();
     body.append("sanPhamId", sanPhamId);
@@ -42,7 +46,8 @@ async function themSanPhamVaoGio(sanPhamId) {
         method: "POST",
         headers: {
             "Content-Type": "application/x-www-form-urlencoded",
-            "Accept": "application/json"
+            "Accept": "application/json",
+            "RequestVerificationToken": layAntiForgeryToken()
         },
         body
     });
@@ -69,6 +74,30 @@ function ganNutThemGioHang() {
                 hienThiThongBaoGioHang("Không thể cập nhật giỏ hàng. Vui lòng thử lại.");
             }
         });
+    });
+}
+
+function ganNutDoiGiaoDien() {
+    const nut = document.getElementById("themeToggle");
+    if (!nut) return;
+
+    const iconSang = nut.querySelector(".theme-icon-light");
+    const iconToi = nut.querySelector(".theme-icon-dark");
+
+    const capNhatNut = () => {
+        const dangToi = document.documentElement.classList.contains("dark");
+        nut.setAttribute("aria-pressed", dangToi ? "true" : "false");
+        nut.setAttribute("title", dangToi ? "Chuy\u1ec3n sang giao di\u1ec7n s\u00e1ng" : "Chuy\u1ec3n sang giao di\u1ec7n t\u1ed1i");
+        iconSang?.classList.toggle("hidden", dangToi);
+        iconToi?.classList.toggle("hidden", !dangToi);
+    };
+
+    capNhatNut();
+
+    nut.addEventListener("click", () => {
+        const dangToi = document.documentElement.classList.toggle("dark");
+        localStorage.setItem("ministop-theme", dangToi ? "dark" : "light");
+        capNhatNut();
     });
 }
 
@@ -117,4 +146,5 @@ document.addEventListener("DOMContentLoaded", () => {
     capNhatSoLuongGio();
     ganNutThemGioHang();
     ganMenuTaiKhoan();
+    ganNutDoiGiaoDien();
 });

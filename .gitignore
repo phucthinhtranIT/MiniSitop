@@ -3,5 +3,10 @@ obj/
 .vs/
 *.user
 *.suo
+*.db
 *.db-shm
 *.db-wal
+.codex-web-run*.log
+.tmp/
+.vscode/
+wwwroot/uploads/

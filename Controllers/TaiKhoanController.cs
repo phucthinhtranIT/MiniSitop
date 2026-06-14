@@ -131,8 +131,13 @@ namespace WebQLministop.Controllers
                 return RedirectToAction("Index", "DangNhap");
             }
 
-            if (string.IsNullOrWhiteSpace(khachHang.MatKhauHash) ||
-                _passwordHasher.VerifyHashedPassword(khachHang, khachHang.MatKhauHash, matKhauHienTai) == PasswordVerificationResult.Failed)
+            if (string.IsNullOrWhiteSpace(khachHang.MatKhauHash))
+            {
+                ModelState.AddModelError(string.Empty, "Tài khoản Google không sử dụng mật khẩu nội bộ.");
+                return View("Index", khachHang);
+            }
+
+            if (_passwordHasher.VerifyHashedPassword(khachHang, khachHang.MatKhauHash, matKhauHienTai) == PasswordVerificationResult.Failed)
             {
                 ModelState.AddModelError(string.Empty, "Mật khẩu hiện tại không đúng.");
             }
@@ -184,6 +189,7 @@ namespace WebQLministop.Controllers
         private void LuuSessionKhachHang(KhachHang khachHang)
         {
             HttpContext.Session.SetString("KhachHangHoTen", khachHang.HoTen);
+            HttpContext.Session.SetInt32("KhachHangDiemThuong", khachHang.DiemThuong);
 
             if (string.IsNullOrWhiteSpace(khachHang.AnhDaiDien))
             {

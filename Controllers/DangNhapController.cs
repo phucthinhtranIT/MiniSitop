@@ -1,5 +1,7 @@
 using System.Net;
 using System.Net.Mail;
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -56,6 +58,59 @@ namespace WebQLministop.Controllers
             }
 
             LuuSessionKhachHang(khachHang);
+            return RedirectToAction("Index", "Home");
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public IActionResult DangNhapGoogle()
+        {
+            var redirectUrl = Url.Action(nameof(DangNhapGoogleCallback), "DangNhap");
+            var properties = new AuthenticationProperties
+            {
+                RedirectUri = redirectUrl
+            };
+
+            return Challenge(properties, "Google");
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> DangNhapGoogleCallback()
+        {
+            var ketQua = await HttpContext.AuthenticateAsync("External");
+            if (!ketQua.Succeeded || ketQua.Principal == null)
+            {
+                ModelState.AddModelError(string.Empty, "Không thể đăng nhập bằng Google. Vui lòng thử lại.");
+                return View(nameof(Index));
+            }
+
+            var email = ketQua.Principal.FindFirst(ClaimTypes.Email)?.Value?.Trim();
+            var hoTen = ketQua.Principal.FindFirst(ClaimTypes.Name)?.Value?.Trim();
+
+            if (string.IsNullOrWhiteSpace(email))
+            {
+                await HttpContext.SignOutAsync("External");
+                ModelState.AddModelError(string.Empty, "Tài khoản Google này không cung cấp email.");
+                return View(nameof(Index));
+            }
+
+            var khachHang = await _context.KhachHangs.FirstOrDefaultAsync(k => k.KichHoat && k.Email == email);
+            if (khachHang == null)
+            {
+                khachHang = new KhachHang
+                {
+                    HoTen = string.IsNullOrWhiteSpace(hoTen) ? email : hoTen,
+                    Email = email,
+                    KichHoat = true
+                };
+
+                _context.KhachHangs.Add(khachHang);
+                await _context.SaveChangesAsync();
+            }
+
+            LuuSessionKhachHang(khachHang);
+            await HttpContext.SignOutAsync("External");
+
             return RedirectToAction("Index", "Home");
         }
 
@@ -154,6 +209,7 @@ namespace WebQLministop.Controllers
             HttpContext.Session.Remove("KhachHangId");
             HttpContext.Session.Remove("KhachHangHoTen");
             HttpContext.Session.Remove("KhachHangAnhDaiDien");
+            HttpContext.Session.Remove("KhachHangDiemThuong");
 
             return RedirectToAction("Index", "Home");
         }
@@ -162,6 +218,7 @@ namespace WebQLministop.Controllers
         {
             HttpContext.Session.SetInt32("KhachHangId", khachHang.Id);
             HttpContext.Session.SetString("KhachHangHoTen", khachHang.HoTen);
+            HttpContext.Session.SetInt32("KhachHangDiemThuong", khachHang.DiemThuong);
 
             if (string.IsNullOrWhiteSpace(khachHang.AnhDaiDien))
             {

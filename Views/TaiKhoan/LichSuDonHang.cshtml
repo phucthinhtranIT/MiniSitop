@@ -1,7 +1,23 @@
-@model List<DonHang>
+﻿@model List<DonHang>
 @{
     ViewData["Title"] = "Lịch sử mua hàng";
     var donHangChiTiet = ViewBag.DonHangChiTiet as DonHang;
+
+    string HienThiTrangThai(string? trangThai) => trangThai switch
+    {
+        "ChoXuLy" => "Chờ xử lý",
+        "ThanhCong" => "Thành công",
+        "DaThanhToan" => "Đã thanh toán",
+        "DaHuy" => "Đã hủy",
+        _ => string.IsNullOrWhiteSpace(trangThai) ? "Chưa cập nhật" : trangThai
+    };
+
+    string HienThiThanhToan(string? phuongThuc) => phuongThuc switch
+    {
+        "TienMat" => "Tiền mặt",
+        "ChuyenKhoan" => "Chuyển khoản",
+        _ => string.IsNullOrWhiteSpace(phuongThuc) ? "Chưa cập nhật" : phuongThuc
+    };
 }
 
 <div class="mx-auto mt-8 max-w-6xl px-4 sm:px-6 lg:px-8">
@@ -46,7 +62,7 @@
                             <div class="mt-1 text-xs text-slate-500">@donHang.ChiTiet.Count sản phẩm</div>
                         </div>
                         <div>
-                            <span class="rounded-full bg-brand-50 px-3 py-1 text-xs font-bold text-brand-700">@donHang.TrangThai</span>
+                            <span class="rounded-full bg-brand-50 px-3 py-1 text-xs font-bold text-brand-700">@HienThiTrangThai(donHang.TrangThai)</span>
                         </div>
                         <div class="font-bold text-slate-900">@donHang.TongTien.ToString("N0")đ</div>
                         <div class="md:text-right">
@@ -64,6 +80,9 @@
     {
         var tongTruocGiam = donHangChiTiet.ChiTiet.Sum(c => c.SoLuong * c.DonGia);
         var tongGiam = donHangChiTiet.ChiTiet.Sum(c => c.TienGiam);
+        var laDonHangCu = donHangChiTiet.TienGiamKhuyenMai <= 0 && donHangChiTiet.TienGiamDiem <= 0 && tongGiam > 0;
+        var tienGiamKhuyenMai = laDonHangCu ? tongGiam : donHangChiTiet.TienGiamKhuyenMai;
+        var tienGiamDiem = donHangChiTiet.TienGiamDiem;
 
         <section class="mt-6 overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
             <div class="flex flex-col gap-3 border-b border-slate-100 bg-slate-50 px-5 py-4 md:flex-row md:items-center md:justify-between">
@@ -72,8 +91,12 @@
                     <div class="mt-1 text-sm text-slate-500">Ngày thanh toán: @donHangChiTiet.NgayDat.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</div>
                 </div>
                 <div class="flex flex-wrap items-center gap-2">
-                    <span class="rounded-full bg-brand-50 px-3 py-1 text-xs font-bold text-brand-700">@donHangChiTiet.TrangThai</span>
-                    <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">@donHangChiTiet.PhuongThucThanhToan</span>
+                    <span class="rounded-full bg-brand-50 px-3 py-1 text-xs font-bold text-brand-700">@HienThiTrangThai(donHangChiTiet.TrangThai)</span>
+                    <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">@HienThiThanhToan(donHangChiTiet.PhuongThucThanhToan)</span>
+                    @if (donHangChiTiet.DiemThuongCong > 0)
+                    {
+                        <span class="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700">+@donHangChiTiet.DiemThuongCong.ToString("N0") điểm tích lũy</span>
+                    }
                 </div>
             </div>
 
@@ -96,10 +119,27 @@
                     <span>Tạm tính</span>
                     <span>@tongTruocGiam.ToString("N0")đ</span>
                 </div>
-                <div class="flex justify-between text-slate-500">
-                    <span>Khuyến mãi</span>
-                    <span class="font-bold text-emerald-600">-@tongGiam.ToString("N0")đ</span>
-                </div>
+                @if (tienGiamKhuyenMai > 0)
+                {
+                    <div class="flex justify-between text-slate-500">
+                        <span>Khuyến mãi@(string.IsNullOrWhiteSpace(donHangChiTiet.MaKhuyenMaiDaDung) ? "" : $" ({donHangChiTiet.MaKhuyenMaiDaDung})")</span>
+                        <span class="font-bold text-emerald-600">-@tienGiamKhuyenMai.ToString("N0")đ</span>
+                    </div>
+                }
+                @if (tienGiamDiem > 0)
+                {
+                    <div class="flex justify-between text-slate-500">
+                        <span>Điểm tích lũy đã dùng</span>
+                        <span class="font-bold text-emerald-600">@donHangChiTiet.DiemThuongSuDung.ToString("N0") điểm (-@tienGiamDiem.ToString("N0")đ)</span>
+                    </div>
+                }
+                @if (donHangChiTiet.DiemThuongCong > 0)
+                {
+                    <div class="flex justify-between text-slate-500">
+                        <span>Điểm tích lũy được cộng</span>
+                        <span class="font-bold text-emerald-600">+@donHangChiTiet.DiemThuongCong.ToString("N0") điểm</span>
+                    </div>
+                }
                 <div class="flex justify-between text-base font-black text-slate-900">
                     <span>Tổng tiền</span>
                     <span>@donHangChiTiet.TongTien.ToString("N0")đ</span>

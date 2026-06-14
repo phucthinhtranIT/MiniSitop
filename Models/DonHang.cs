@@ -23,5 +23,18 @@ public class DonHang
     [Range(0, double.MaxValue)]
     public decimal TongTien { get; set; }
 
+    public int DiemThuongSuDung { get; set; }
+
+    public int DiemThuongCong { get; set; }
+
+    [Range(0, double.MaxValue)]
+    public decimal TienGiamDiem { get; set; }
+
+    [StringLength(50)]
+    public string? MaKhuyenMaiDaDung { get; set; }
+
+    [Range(0, double.MaxValue)]
+    public decimal TienGiamKhuyenMai { get; set; }
+
     public List<ChiTietDonHang> ChiTiet { get; set; } = new();
 }

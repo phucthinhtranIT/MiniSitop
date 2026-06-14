@@ -1,11 +1,17 @@
-@model GioHang
+﻿@model GioHang
 @{
     ViewData["Title"] = "Giỏ hàng";
     var chiTiet = Model.ChiTiet.OrderBy(c => c.Id).ToList();
     var khuyenMai = ViewBag.KhuyenMai as KhuyenMai;
+    var diemThuong = ViewBag.DiemThuong is int diem ? diem : 0;
+    var diemThuongSuDung = ViewBag.DiemThuongSuDung is int diemDung ? diemDung : 0;
+    var giaTriMoiDiem = ViewBag.GiaTriMoiDiem is decimal giaTri ? giaTri : 1m;
     var tongTien = chiTiet.Sum(c => c.SoLuong * (c.SanPham?.GiaBan ?? 0));
     var tienGiam = khuyenMai == null ? 0m : Math.Round(tongTien * khuyenMai.PhanTramGiam / 100m, 0);
     var tongSauGiam = tongTien - tienGiam;
+    var tienGiamDiem = diemThuongSuDung * giaTriMoiDiem;
+    var tongThanhToan = Math.Max(0m, tongSauGiam - tienGiamDiem);
+    var diemToiDa = Math.Min(diemThuong, (int)Math.Floor(tongSauGiam / giaTriMoiDiem));
     const string anhDuPhong = "https://images.unsplash.com/photo-1601598851547-4302969d0614?auto=format&fit=crop&w=600&q=80";
 }
 
@@ -49,14 +55,22 @@
                             <div class="text-xs text-slate-400">@sanPham?.Ma</div>
                             <h2 class="mt-1 line-clamp-2 font-bold text-slate-900">@sanPham?.Ten</h2>
                             <div class="mt-1 text-sm text-slate-500">@((sanPham?.GiaBan ?? 0).ToString("N0"))đ / @(sanPham?.DonVi ?? "sp")</div>
-                            <form method="post" action="/GioHang/CapNhat" class="mt-3 flex items-center gap-2">
-                                @Html.AntiForgeryToken()
-                                <input type="hidden" name="chiTietId" value="@item.Id" />
-                                <button type="submit" name="soLuong" value="@(item.SoLuong - 1)" class="h-8 w-8 rounded-full border border-slate-200 text-slate-600 hover:border-brand-400 hover:text-brand-600">-</button>
-                                <input name="soLuong" value="@item.SoLuong" min="1" max="@(sanPham?.TonKho ?? item.SoLuong)" class="h-8 w-14 rounded-lg border border-slate-200 text-center text-sm font-semibold" />
-                                <button type="submit" name="soLuong" value="@(item.SoLuong + 1)" class="h-8 w-8 rounded-full border border-slate-200 text-slate-600 hover:border-brand-400 hover:text-brand-600">+</button>
+                            <div class="mt-3 flex items-center gap-2">
+                                <form method="post" action="/GioHang/CapNhat" class="m-0">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="chiTietId" value="@item.Id" />
+                                    <input type="hidden" name="soLuong" value="@(item.SoLuong - 1)" />
+                                    <button type="submit" class="h-8 w-8 rounded-full border border-slate-200 text-slate-600 hover:border-brand-400 hover:text-brand-600">-</button>
+                                </form>
+                                <input value="@item.SoLuong" readonly class="h-8 w-14 rounded-lg border border-slate-200 text-center text-sm font-semibold" />
+                                <form method="post" action="/GioHang/CapNhat" class="m-0">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="chiTietId" value="@item.Id" />
+                                    <input type="hidden" name="soLuong" value="@(item.SoLuong + 1)" />
+                                    <button type="submit" class="h-8 w-8 rounded-full border border-slate-200 text-slate-600 hover:border-brand-400 hover:text-brand-600">+</button>
+                                </form>
                                 <span class="text-xs text-slate-400">Tối đa @(sanPham?.TonKho ?? 0)</span>
-                            </form>
+                            </div>
                         </div>
                         <div class="col-span-2 flex items-center justify-between border-t border-slate-100 pt-3 md:col-span-1 md:block md:border-t-0 md:pt-0 md:text-right">
                             <div class="font-bold text-brand-600">@thanhTien.ToString("N0")đ</div>
@@ -81,9 +95,13 @@
                         <span>Khuyến mãi</span>
                         <span class="font-bold text-emerald-600">-@tienGiam.ToString("N0")đ</span>
                     </div>
+                    <div class="flex justify-between text-slate-500">
+                        <span>Điểm tích lũy</span>
+                        <span class="font-bold text-emerald-600">-@tienGiamDiem.ToString("N0")đ</span>
+                    </div>
                     <div class="flex justify-between text-base">
                         <span class="font-bold text-slate-900">Tổng cộng</span>
-                        <span class="font-black text-brand-600">@tongSauGiam.ToString("N0")đ</span>
+                        <span class="font-black text-brand-600">@tongThanhToan.ToString("N0")đ</span>
                     </div>
                 </div>
 
@@ -114,6 +132,47 @@
                     }
                 </div>
 
+                <div class="mt-5 rounded-xl border border-slate-100 bg-slate-50 p-4">
+                    <div class="flex items-start justify-between gap-3">
+                        <div>
+                            <div class="text-sm font-bold text-slate-900">Điểm tích lũy</div>
+                            <div class="mt-1 text-xs text-slate-500">Bạn đang có @diemThuong.ToString("N0") điểm. 10.000đ mua hàng = 100 điểm, 1 điểm = 1đ giảm.</div>
+                        </div>
+                        <div class="min-w-[72px] whitespace-nowrap rounded-full bg-brand-50 px-3 py-1 text-center text-xs font-bold text-brand-700">
+                            @diemThuong.ToString("N0") điểm
+                        </div>
+                    </div>
+
+                    @if (diemThuongSuDung > 0)
+                    {
+                        <div class="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700">
+                            Đang dùng @diemThuongSuDung.ToString("N0") điểm, giảm @tienGiamDiem.ToString("N0")đ
+                        </div>
+                        <form method="post" action="/GioHang/BoDiemThuong" class="mt-3">
+                            @Html.AntiForgeryToken()
+                            <button type="submit" class="w-full rounded-lg border border-emerald-200 bg-white px-4 py-2 text-sm font-bold text-emerald-700 hover:bg-emerald-50">
+                                Bỏ điểm tích lũy
+                            </button>
+                        </form>
+                    }
+                    else if (diemToiDa > 0)
+                    {
+                        <form method="post" action="/GioHang/ApDungDiemThuong" class="mt-3 flex gap-2">
+                            @Html.AntiForgeryToken()
+                            <input name="diemSuDung" type="number" min="1" max="@diemToiDa" value="@diemToiDa" class="min-w-0 flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/10" />
+                            <button type="submit" class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-bold text-white hover:bg-slate-800">
+                                Áp dụng
+                            </button>
+                        </form>
+                        <div class="mt-2 text-xs text-slate-400">Có thể dùng tối đa @diemToiDa.ToString("N0") điểm cho giỏ hàng này.</div>
+                    }
+                    else
+                    {
+                        <div class="mt-3 rounded-lg bg-white px-3 py-2 text-sm text-slate-500">
+                            Bạn chưa có điểm khả dụng cho giỏ hàng này.
+                        </div>
+                    }
+                </div>
                 <form method="post" action="/GioHang/XacNhan" class="mt-5">
                     @Html.AntiForgeryToken()
                     <button type="submit" class="w-full rounded-xl bg-brand-600 px-5 py-3 font-bold text-white hover:bg-brand-700">
