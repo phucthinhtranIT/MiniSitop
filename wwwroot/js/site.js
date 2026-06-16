@@ -1,4 +1,4 @@
-﻿function hienThiThongBaoGioHang(noiDung) {
+function hienThiThongBaoGioHang(noiDung) {
     let thongBao = document.getElementById("cartToast");
     if (!thongBao) {
         thongBao = document.createElement("div");
@@ -142,9 +142,122 @@ function ganMenuTaiKhoan() {
     });
 }
 
+function dinhDangTien(value) {
+    return new Intl.NumberFormat("vi-VN").format(Number(value || 0)) + "đ";
+}
+
+function ganAutocompleteTimKiem() {
+    const inputs = document.querySelectorAll('form[action*="TimKiem"] input[name="keyword"], input.guest-search-input[name="keyword"]');
+    if (inputs.length === 0) return;
+
+    inputs.forEach((input) => {
+        let timer;
+        const wrapper = input.closest(".search-input-wrapper") || input.closest("form");
+        input.setAttribute("autocomplete", "off");
+        wrapper?.classList.add("search-autocomplete-form");
+        const panel = document.createElement("div");
+        panel.className = "search-autocomplete-panel";
+        (wrapper || input.parentElement)?.appendChild(panel);
+
+        const dongPanel = () => {
+            panel.classList.remove("is-open");
+            panel.innerHTML = "";
+        };
+
+        const chonGoiY = (tenSanPham) => {
+            input.value = tenSanPham;
+            const url = `/Home/TimKiem?keyword=${encodeURIComponent(tenSanPham)}`;
+            window.location.href = url;
+        };
+
+        const veGoiY = (items) => {
+            if (!items.length) {
+                panel.innerHTML = '<div class="search-autocomplete-empty">Không có gợi ý phù hợp.</div>';
+                panel.classList.add("is-open");
+                return;
+            }
+
+            panel.innerHTML = items.map((item) => {
+                const ten = item.ten ?? item.Ten ?? "";
+                const ma = item.ma ?? item.Ma ?? "";
+                const giaBan = item.giaBan ?? item.GiaBan ?? 0;
+                const danhMuc = item.danhMuc ?? item.DanhMuc ?? "";
+                const hinhAnh = item.hinhAnh ?? item.HinhAnh ?? "";
+                const anh = hinhAnh || "https://images.unsplash.com/photo-1601598851547-4302969d0614?auto=format&fit=crop&w=120&q=80";
+
+                return `
+                    <button type="button" class="search-autocomplete-item" data-ten="${ten.replaceAll('"', "&quot;")}">
+                        <img src="${anh}" alt="${ten}">
+                        <span>
+                            <strong>${ten}</strong>
+                            <small>${ma} ${danhMuc ? `- ${danhMuc}` : ""} - ${dinhDangTien(giaBan)}</small>
+                        </span>
+                    </button>
+                `;
+            }).join("");
+
+            panel.querySelectorAll("[data-ten]").forEach((button) => {
+                button.addEventListener("click", () => chonGoiY(button.dataset.ten || ""));
+            });
+
+            panel.classList.add("is-open");
+            if (window.ministopI18n?.getLanguage?.() === "en") {
+                window.ministopI18n.setLanguage("en");
+            }
+        };
+
+        const xuLyNhap = () => {
+            window.clearTimeout(timer);
+            const tuKhoa = input.value.trim();
+            if (tuKhoa.length < 1) {
+                dongPanel();
+                return;
+            }
+
+            timer = window.setTimeout(async () => {
+                try {
+                    let response = await fetch(`/Home/GoiYTimKiem?tuKhoa=${encodeURIComponent(tuKhoa)}`, {
+                        headers: { "Accept": "application/json" }
+                    });
+                    if (response.status === 404) {
+                        response = await fetch(`/KhachHang/Home/GoiYTimKiem?tuKhoa=${encodeURIComponent(tuKhoa)}`, {
+                            headers: { "Accept": "application/json" }
+                        });
+                    }
+                    if (!response.ok) {
+                        dongPanel();
+                        return;
+                    }
+                    const items = await response.json();
+                    veGoiY(items);
+                } catch {
+                    dongPanel();
+                }
+            }, 220);
+        };
+
+        input.addEventListener("input", xuLyNhap);
+        input.addEventListener("keyup", xuLyNhap);
+        input.addEventListener("focus", xuLyNhap);
+
+        input.addEventListener("keydown", (event) => {
+            if (event.key === "Escape") {
+                dongPanel();
+            }
+        });
+
+        document.addEventListener("click", (event) => {
+            if (!panel.contains(event.target) && event.target !== input) {
+                dongPanel();
+            }
+        });
+    });
+}
+
 document.addEventListener("DOMContentLoaded", () => {
     capNhatSoLuongGio();
     ganNutThemGioHang();
     ganMenuTaiKhoan();
     ganNutDoiGiaoDien();
+    ganAutocompleteTimKiem();
 });

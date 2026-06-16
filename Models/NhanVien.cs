@@ -18,6 +18,9 @@ public class NhanVien
     [EmailAddress, StringLength(150)]
     public string? Email { get; set; }
 
+    [StringLength(500)]
+    public string? MatKhauHash { get; set; }
+
     public decimal Luong { get; set; }
 
     public DateTime NgayVaoLam { get; set; } = DateTime.UtcNow;

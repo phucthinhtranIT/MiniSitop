@@ -1,9 +1,10 @@
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using WebQLministop.Models;
 
 namespace WebQLministop.Data;
 
-public class ApplicationDbContext : DbContext
+public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
 {
     public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options)
     {
@@ -97,5 +98,17 @@ public class ApplicationDbContext : DbContext
             .WithMany()
             .HasForeignKey(p => p.NhanVienId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<ApplicationUser>()
+            .HasOne(u => u.KhachHang)
+            .WithOne()
+            .HasForeignKey<ApplicationUser>(u => u.KhachHangId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<ApplicationUser>()
+            .HasOne(u => u.NhanVien)
+            .WithOne()
+            .HasForeignKey<ApplicationUser>(u => u.NhanVienId)
+            .OnDelete(DeleteBehavior.Restrict);
     }
 }

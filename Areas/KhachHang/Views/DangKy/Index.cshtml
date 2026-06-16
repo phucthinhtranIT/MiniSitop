@@ -1,6 +1,7 @@
 ﻿@{
     Layout = "_Layout";
     ViewData["HideCategories"] = true;
+    ViewData["HideGuestHeader"] = true;
     ViewData["Title"] = "Đăng ký";
     var form = Context.Request.HasFormContentType ? Context.Request.Form : null;
     var hoTen = form?["hoTen"].ToString() ?? string.Empty;

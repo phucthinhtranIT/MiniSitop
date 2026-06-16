@@ -1,0 +1,690 @@
+@using System.Text.Json
+@using Microsoft.AspNetCore.Http
+@{
+    ViewData["Title"] = "Nhân viên";
+    ViewData["HideCategories"] = true;
+    var sanPhams = ViewBag.SanPhams as List<SanPham> ?? new List<SanPham>();
+    var khachHangs = ViewBag.KhachHangs as List<KhachHang> ?? new List<KhachHang>();
+    var nhanViens = ViewBag.NhanViens as List<NhanVien> ?? new List<NhanVien>();
+    var donHangs = ViewBag.DonHangs as List<DonHang> ?? new List<DonHang>();
+    var coQuyenBanHang = ViewBag.CoQuyenBanHang as bool? ?? true;
+    var coQuyenTraCuuSanPham = ViewBag.CoQuyenTraCuuSanPham as bool? ?? true;
+    var coQuyenTaoHoaDon = ViewBag.CoQuyenTaoHoaDon as bool? ?? true;
+    
+    string HienThiDanhMuc(string? ten) => ten switch
+    {
+        "Do uong" => "Đồ uống",
+        "Banh keo" => "Bánh kẹo",
+        "Thuc pham" => "Thực phẩm",
+        "Gia dung" => "Gia dụng",
+        _ => string.IsNullOrWhiteSpace(ten) ? "Khác" : ten
+    };
+    
+    string HienThiTrangThai(string? trangThai) => trangThai switch
+    {
+        "DangXuLy" => "Đang xử lý",
+        "DaThanhToan" => "Đã thanh toán",
+        "ThanhCong" => "Thành công",
+        "DaHuy" => "Đã hủy",
+        _ => string.IsNullOrWhiteSpace(trangThai) ? "Chưa rõ" : trangThai
+    };
+    
+    string HienThiThanhToan(string? phuongThuc) => phuongThuc switch
+    {
+        "TienMat" => "Tiền mặt",
+        "ChuyenKhoan" => "QR SePAY",
+        _ => string.IsNullOrWhiteSpace(phuongThuc) ? "Chưa rõ" : phuongThuc
+    };
+
+    var sanPhamJson = JsonSerializer.Serialize(sanPhams.Select(s => new
+    {
+        s.Id,
+        s.Ma,
+        s.Ten,
+        s.GiaBan,
+        s.TonKho,
+        s.DonVi,
+        HinhAnh = string.IsNullOrWhiteSpace(s.HinhAnh) ? "https://images.unsplash.com/photo-1601598851547-4302969d0614?auto=format&fit=crop&w=600&q=80" : s.HinhAnh,
+        DanhMuc = HienThiDanhMuc(s.DanhMuc?.Ten)
+    }));
+}
+
+<style>
+    body {
+        background-color: #f3f4f6;
+    }
+    
+    .pos-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1.6fr) minmax(380px, 1fr);
+        gap: 20px;
+        height: calc(100vh - 80px);
+        overflow: hidden;
+    }
+
+    .pos-panel {
+        background: #ffffff;
+        border-radius: 16px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    .pos-header {
+        padding: 16px 20px;
+        border-bottom: 1px solid #f3f4f6;
+        background: #fafafa;
+    }
+
+    .product-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+        gap: 16px;
+        padding: 20px;
+        overflow-y: auto;
+        align-content: start;
+        flex-grow: 1;
+    }
+
+    .product-card {
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .product-card:hover {
+        border-color: #10b981;
+        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.15);
+        transform: translateY(-2px);
+    }
+
+    .product-img {
+        width: 100%;
+        height: 120px;
+        object-fit: cover;
+        background: #f9fafb;
+    }
+
+    .product-info {
+        padding: 12px;
+        text-align: center;
+    }
+
+    .product-name {
+        font-weight: 600;
+        font-size: 0.9rem;
+        color: #111827;
+        margin-bottom: 4px;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        height: 2.6rem;
+    }
+
+    .product-price {
+        color: #10b981;
+        font-weight: 700;
+    }
+
+    .product-stock {
+        font-size: 0.75rem;
+        color: #6b7280;
+        margin-top: 4px;
+    }
+
+    .cart-list {
+        flex-grow: 1;
+        overflow-y: auto;
+        padding: 20px;
+    }
+
+    .cart-item {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 110px 40px;
+        gap: 12px;
+        align-items: center;
+        padding: 12px 0;
+        border-bottom: 1px solid #f3f4f6;
+    }
+
+    .cart-item-name {
+        font-weight: 600;
+        color: #111827;
+        margin-bottom: 2px;
+    }
+
+    .cart-item-price {
+        color: #6b7280;
+        font-size: 0.85rem;
+    }
+
+    .qty-control {
+        display: flex;
+        align-items: center;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        overflow: hidden;
+    }
+
+    .qty-btn {
+        background: #f9fafb;
+        border: none;
+        padding: 6px 12px;
+        cursor: pointer;
+        font-weight: bold;
+        color: #374151;
+        transition: background 0.1s;
+    }
+
+    .qty-btn:hover {
+        background: #e5e7eb;
+    }
+
+    .qty-input {
+        width: 40px;
+        text-align: center;
+        border: none;
+        border-left: 1px solid #e5e7eb;
+        border-right: 1px solid #e5e7eb;
+        font-weight: 600;
+        padding: 6px 0;
+        -moz-appearance: textfield;
+    }
+
+    .qty-input::-webkit-outer-spin-button,
+    .qty-input::-webkit-inner-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+    }
+
+    .remove-btn {
+        background: #fee2e2;
+        color: #ef4444;
+        border: none;
+        width: 36px;
+        height: 36px;
+        border-radius: 8px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.1s;
+    }
+
+    .remove-btn:hover {
+        background: #fca5a5;
+    }
+
+    .payment-section {
+        background: #fafafa;
+        border-top: 1px solid #f3f4f6;
+        padding: 20px;
+    }
+
+    .payment-summary {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+    }
+
+    .total-label {
+        font-size: 1.1rem;
+        color: #374151;
+        font-weight: 500;
+    }
+
+    .total-amount {
+        font-size: 1.75rem;
+        color: #10b981;
+        font-weight: 800;
+    }
+
+    .payment-methods {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        margin-bottom: 16px;
+    }
+
+    .method-btn {
+        padding: 16px;
+        border: 2px solid #e5e7eb;
+        border-radius: 12px;
+        background: #fff;
+        font-weight: 600;
+        color: #4b5563;
+        cursor: pointer;
+        transition: all 0.2s;
+        text-align: center;
+    }
+
+    .method-btn.active {
+        border-color: #10b981;
+        background: #ecfdf5;
+        color: #047857;
+    }
+
+    .checkout-btn {
+        width: 100%;
+        padding: 18px;
+        background: #111827;
+        color: #fff;
+        border: none;
+        border-radius: 12px;
+        font-size: 1.1rem;
+        font-weight: 700;
+        cursor: pointer;
+        transition: background 0.2s;
+    }
+
+    .checkout-btn:hover {
+        background: #1f2937;
+    }
+
+    .checkout-btn:disabled {
+        background: #9ca3af;
+        cursor: not-allowed;
+    }
+
+    .search-bar {
+        display: flex;
+        gap: 12px;
+    }
+    
+    .search-input {
+        flex-grow: 1;
+        padding: 12px 16px;
+        border: 1px solid #d1d5db;
+        border-radius: 12px;
+        font-size: 1rem;
+        outline: none;
+        transition: border-color 0.2s;
+    }
+    
+    .search-input:focus {
+        border-color: #10b981;
+        box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+    }
+</style>
+
+<form id="ajaxAntiForgeryForm" class="hidden">
+    @Html.AntiForgeryToken()
+</form>
+
+<div class="pos-layout">
+    <!-- Khu vực Sản phẩm (Bên trái) -->
+    <div class="pos-panel">
+        <div class="pos-header">
+            <div class="search-bar">
+                <input id="searchInput" type="text" class="search-input" placeholder="Tìm kiếm hoặc quét mã sản phẩm..." autocomplete="off">
+            </div>
+        </div>
+        <div id="productList" class="product-grid">
+            <!-- Sản phẩm sẽ được render bằng JS ở đây -->
+        </div>
+    </div>
+
+    <!-- Khu vực Giỏ hàng & Thanh toán (Bên phải) -->
+    <div class="pos-panel">
+        <div class="pos-header">
+            <h2 style="margin: 0; font-size: 1.25rem; font-weight: 700; color: #111827;">Hóa đơn mới</h2>
+            <div style="display: grid; grid-template-columns: 1fr; gap: 12px; margin-top: 12px;">
+                <div style="display: flex; gap: 8px;">
+                    <input id="khachHangSearchInput" class="search-input" style="padding: 8px 12px; font-size: 0.9rem; flex-grow: 1;" placeholder="Nhập mã KH (VD: 0000)" autocomplete="off" onkeydown="if(event.key==='Enter') searchKhachHang()" />
+                    <button type="button" class="qty-btn" style="border-radius: 8px;" onclick="searchKhachHang()">Tìm KH</button>
+                </div>
+                <div id="khachHangInfo" style="display: none; font-size: 0.9rem; color: #10b981; font-weight: 600;">
+                    <!-- Thông tin khách hàng sẽ hiện ở đây -->
+                </div>
+                <div id="diemThuongControl" style="display: none; align-items: center; gap: 8px; font-size: 0.9rem;">
+                    <input type="checkbox" id="dungDiemCheckbox" onchange="toggleDiemThuong()" />
+                    <label for="dungDiemCheckbox" style="font-weight: 600;">Dùng điểm tích lũy giảm giá</label>
+                </div>
+                <input type="hidden" id="khachHangId" value="" />
+                
+                @{
+                    var currentNhanVienId = Context.Session.GetInt32("NhanVienId");
+                    var currentNhanVien = nhanViens.FirstOrDefault(nv => nv.Id == currentNhanVienId);
+                    var currentNhanVienName = currentNhanVien != null ? currentNhanVien.HoTen : "Nhân viên";
+                }
+                <div style="padding: 8px 12px; font-size: 0.9rem; background: #f3f4f6; color: #6b7280; border-radius: 8px;">
+                    <span style="font-weight: 600;">Thu ngân: </span> @currentNhanVienName
+                    <input type="hidden" id="nhanVienId" value="@(currentNhanVienId ?? 0)" />
+                </div>
+            </div>
+        </div>
+
+        <div id="cartList" class="cart-list">
+            <div style="text-align: center; color: #9ca3af; margin-top: 40px;">
+                Chưa có sản phẩm nào
+            </div>
+        </div>
+
+        <div class="payment-section">
+            <div class="payment-summary">
+                <span class="total-label">Tổng thanh toán</span>
+                <span id="totalAmount" class="total-amount">0 đ</span>
+            </div>
+            
+            <div class="payment-methods">
+                <button type="button" class="method-btn active" data-method="TienMat" onclick="selectPaymentMethod('TienMat')">Tiền mặt</button>
+                <button type="button" class="method-btn" data-method="ChuyenKhoan" onclick="selectPaymentMethod('ChuyenKhoan')">QR SePAY</button>
+            </div>
+
+            @if (coQuyenTaoHoaDon)
+            {
+                <button id="checkoutButton" class="checkout-btn" type="button">Thanh toán ngay</button>
+            }
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        const sanPhams = @Html.Raw(sanPhamJson);
+        const productCache = new Map();
+        const cart = new Map();
+        
+        let currentPaymentMethod = 'TienMat';
+
+        const currency = new Intl.NumberFormat('vi-VN');
+        const productList = document.getElementById("productList");
+        const cartList = document.getElementById("cartList");
+        const totalAmount = document.getElementById("totalAmount");
+        const searchInput = document.getElementById("searchInput");
+        const khachHangSelect = document.getElementById("khachHangSelect");
+        const nhanVienSelect = document.getElementById("nhanVienSelect");
+        const checkoutButton = document.getElementById("checkoutButton");
+        let searchTimer;
+        let diemKhachHang = 0;
+        let diemSuDung = 0;
+
+        async function searchKhachHang() {
+            const input = document.getElementById("khachHangSearchInput");
+            const info = document.getElementById("khachHangInfo");
+            const control = document.getElementById("diemThuongControl");
+            const khIdInput = document.getElementById("khachHangId");
+            const checkbox = document.getElementById("dungDiemCheckbox");
+            
+            const keyword = input.value.trim();
+            if (!keyword) {
+                alert("Vui lòng nhập mã khách hàng!");
+                return;
+            }
+
+            info.style.display = "block";
+            info.style.color = "#6b7280";
+            info.textContent = "Đang tìm...";
+            control.style.display = "none";
+            khIdInput.value = "";
+            diemKhachHang = 0;
+            diemSuDung = 0;
+            if (checkbox) checkbox.checked = false;
+            renderCart();
+
+            try {
+                const response = await fetch(`/NhanVien/TimKhachHang?ma=${encodeURIComponent(keyword)}`);
+                const result = await response.json();
+                
+                if (result.thanhCong) {
+                    info.style.color = "#10b981";
+                    info.textContent = `KH: ${result.hoTen} - Điểm: ${result.diemThuong}`;
+                    khIdInput.value = result.id;
+                    diemKhachHang = result.diemThuong;
+                    
+                    if (diemKhachHang > 0) {
+                        control.style.display = "flex";
+                    }
+                } else {
+                    info.style.color = "#ef4444";
+                    info.textContent = result.thongBao;
+                }
+            } catch (e) {
+                info.style.color = "#ef4444";
+                info.textContent = "Lỗi kết nối.";
+            }
+        }
+
+        function toggleDiemThuong() {
+            renderCart();
+        }
+
+        function formatMoney(value) {
+            return `${currency.format(value)} đ`;
+        }
+
+        function selectPaymentMethod(method) {
+            currentPaymentMethod = method;
+            document.querySelectorAll('.method-btn').forEach(btn => {
+                if (btn.dataset.method === method) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+        }
+
+        function addToCart(id) {
+            const product = productCache.get(id) || sanPhams.find(item => item.Id === id);
+            if (!product || product.TonKho <= 0) return;
+
+            const current = cart.get(id) || { ...product, SoLuong: 0 };
+            if (current.SoLuong >= product.TonKho) return;
+
+            current.SoLuong += 1;
+            cart.set(id, current);
+            renderCart();
+        }
+
+        function removeFromCart(id) {
+            cart.delete(id);
+            renderCart();
+        }
+
+        function updateQuantity(id, value) {
+            const item = cart.get(id);
+            if (!item) return;
+
+            const quantity = Math.max(1, Math.min(Number(value), item.TonKho));
+            item.SoLuong = quantity;
+            cart.set(id, item);
+            renderCart();
+        }
+
+        function decreaseQuantity(id) {
+            const item = cart.get(id);
+            if (item && item.SoLuong > 1) {
+                updateQuantity(id, item.SoLuong - 1);
+            } else {
+                removeFromCart(id);
+            }
+        }
+
+        function increaseQuantity(id) {
+            const item = cart.get(id);
+            if (item && item.SoLuong < item.TonKho) {
+                updateQuantity(id, item.SoLuong + 1);
+            }
+        }
+
+        function renderProducts(products) {
+            if (!productList) return;
+
+            if (products.length === 0) {
+                productList.innerHTML = '<div style="grid-column: 1/-1; text-align: center; color: #9ca3af; padding: 40px;">Không tìm thấy sản phẩm phù hợp.</div>';
+                return;
+            }
+
+            products.forEach(item => productCache.set(item.Id, item));
+            productList.innerHTML = products.map(item => `
+                <div class="product-card" onclick="addToCart(${item.Id})">
+                    <img class="product-img" src="${item.HinhAnh}" alt="${item.Ten}" onerror="this.src='https://images.unsplash.com/photo-1601598851547-4302969d0614?auto=format&fit=crop&w=600&q=80'" />
+                    <div class="product-info">
+                        <div class="product-name" title="${item.Ten}">${item.Ten}</div>
+                        <div class="product-price">${formatMoney(item.GiaBan)}</div>
+                        <div class="product-stock">Tồn: ${item.TonKho} ${item.DonVi}</div>
+                    </div>
+                </div>
+            `).join("");
+        }
+
+        async function searchProducts() {
+            if (!searchInput || !productList || !@coQuyenTraCuuSanPham.ToString().ToLower()) return;
+
+            const keyword = searchInput.value.trim();
+            if (keyword.length === 0) {
+                renderProducts(sanPhams);
+                return;
+            }
+
+            productList.innerHTML = '<div style="grid-column: 1/-1; text-align: center; color: #9ca3af; padding: 40px;">Đang tìm sản phẩm...</div>';
+            
+            try {
+                const response = await fetch(`/NhanVien/TimSanPham?tuKhoa=${encodeURIComponent(keyword)}`);
+                const rawProducts = await response.json();
+                const products = rawProducts.map(item => ({
+                    Id: item.Id ?? item.id,
+                    Ma: item.Ma ?? item.ma,
+                    Ten: item.Ten ?? item.ten,
+                    GiaBan: item.GiaBan ?? item.giaBan,
+                    TonKho: item.TonKho ?? item.tonKho,
+                    DonVi: item.DonVi ?? item.donVi,
+                    DanhMuc: item.DanhMuc ?? item.danhMuc,
+                    HinhAnh: item.HinhAnh || item.hinhAnh || (sanPhams.find(p => p.Id === (item.Id || item.id))?.HinhAnh) || "https://images.unsplash.com/photo-1601598851547-4302969d0614?auto=format&fit=crop&w=600&q=80"
+                }));
+                renderProducts(products);
+            } catch (error) {
+                console.error(error);
+            }
+        }
+
+        function renderCart() {
+            const items = Array.from(cart.values());
+            if (!cartList || !totalAmount) return;
+
+            if (items.length === 0) {
+                cartList.innerHTML = '<div style="text-align: center; color: #9ca3af; margin-top: 40px;">Chưa có sản phẩm nào</div>';
+                totalAmount.textContent = formatMoney(0);
+                return;
+            }
+
+            cartList.innerHTML = items.map(item => `
+                <div class="cart-item">
+                    <div>
+                        <div class="cart-item-name">${item.Ten}</div>
+                        <div class="cart-item-price">${item.Ma} • ${formatMoney(item.GiaBan)}</div>
+                    </div>
+                    <div class="qty-control">
+                        <button class="qty-btn" type="button" onclick="decreaseQuantity(${item.Id})">-</button>
+                        <input class="qty-input" type="number" min="1" max="${item.TonKho}" value="${item.SoLuong}" onchange="updateQuantity(${item.Id}, this.value)" />
+                        <button class="qty-btn" type="button" onclick="increaseQuantity(${item.Id})">+</button>
+                    </div>
+                    <button class="remove-btn" type="button" onclick="removeFromCart(${item.Id})">×</button>
+                </div>
+            `).join("");
+
+            const total = items.reduce((sum, item) => sum + item.GiaBan * item.SoLuong, 0);
+            
+            const checkbox = document.getElementById("dungDiemCheckbox");
+            diemSuDung = 0;
+            if (checkbox && checkbox.checked && diemKhachHang > 0) {
+                diemSuDung = Math.min(diemKhachHang, total);
+            }
+            
+            const finalTotal = total - diemSuDung;
+            
+            let html = formatMoney(finalTotal);
+            if (diemSuDung > 0) {
+                html += ` <br><span style="font-size: 0.9rem; color: #ef4444; font-weight: normal;">(Đã trừ ${formatMoney(diemSuDung)} từ điểm)</span>`;
+            }
+            totalAmount.innerHTML = html;
+        }
+
+        if (searchInput) {
+            searchInput.addEventListener("input", () => {
+                clearTimeout(searchTimer);
+                searchTimer = setTimeout(searchProducts, 250);
+            });
+            
+            searchInput.addEventListener("keydown", event => {
+                if (event.key === "Enter") {
+                    event.preventDefault();
+                    const code = searchInput.value.trim().toLowerCase();
+                    const product = Array.from(productCache.values()).find(item => item.Ma.toLowerCase() === code);
+                    if (product) {
+                        addToCart(product.Id);
+                        searchInput.value = "";
+                    }
+                }
+            });
+        }
+
+        function getAntiForgeryToken() {
+            return document.querySelector("#ajaxAntiForgeryForm input[name='__RequestVerificationToken']")?.value || "";
+        }
+
+        checkoutButton?.addEventListener("click", async () => {
+            if (cart.size === 0) {
+                alert("Vui lòng thêm sản phẩm vào hóa đơn.");
+                return;
+            }
+
+            checkoutButton.disabled = true;
+            checkoutButton.textContent = "Đang lưu...";
+
+            try {
+                const items = Array.from(cart.values()).map(item => ({
+                    sanPhamId: item.Id,
+                    soLuong: item.SoLuong
+                }));
+
+                const response = await fetch("/NhanVien/TaoDonTaiQuay", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "RequestVerificationToken": getAntiForgeryToken()
+                    },
+                    body: JSON.stringify({
+                        khachHangId: document.getElementById("khachHangId").value ? Number(document.getElementById("khachHangId").value) : null,
+                        nhanVienId: document.getElementById("nhanVienId").value ? Number(document.getElementById("nhanVienId").value) : null,
+                        phuongThucThanhToan: currentPaymentMethod,
+                        diemSuDung: diemSuDung,
+                        sanPhams: items
+                    })
+                });
+
+                const result = await response.json();
+                if (result.thanhCong) {
+                    // Chỉ in hóa đơn ngay nếu thanh toán bằng Tiền mặt
+                    if (currentPaymentMethod !== "ChuyenKhoan") {
+                        window.open(`/NhanVien/InHoaDon?id=${result.maDonHang}`, '_blank');
+                    }
+
+                    alert(result.thongBao);
+                    cart.clear();
+                    renderCart();
+                    window.location.reload();
+                } else {
+                    alert(result.thongBao || "Không thể tạo hóa đơn. Vui lòng thử lại.");
+                }
+            } catch (e) {
+                console.error(e);
+                alert("Không thể kết nối máy chủ. Vui lòng thử lại.");
+            } finally {
+                checkoutButton.disabled = false;
+                checkoutButton.textContent = "Thanh toán ngay";
+            }
+        });
+
+        // Initialize
+        renderProducts(sanPhams);
+    </script>
+}

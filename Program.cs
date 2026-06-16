@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using WebQLministop.Data;
@@ -20,17 +21,40 @@ builder.Services.AddSession(options =>
     options.Cookie.HttpOnly = true;
     options.Cookie.IsEssential = true;
 });
-builder.Services
-    .AddAuthentication()
-    .AddCookie("External")
-    .AddGoogle(options =>
+builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
+{
+    options.Password.RequiredLength = 6;
+    options.Password.RequireDigit = false;
+    options.Password.RequireLowercase = false;
+    options.Password.RequireUppercase = false;
+    options.Password.RequireNonAlphanumeric = false;
+    options.User.RequireUniqueEmail = false;
+})
+    .AddEntityFrameworkStores<ApplicationDbContext>()
+    .AddDefaultTokenProviders();
+
+var authenticationBuilder = builder.Services.AddAuthentication();
+
+var googleClientId = builder.Configuration["Authentication:Google:ClientId"];
+var googleClientSecret = builder.Configuration["Authentication:Google:ClientSecret"];
+if (!string.IsNullOrWhiteSpace(googleClientId) && !string.IsNullOrWhiteSpace(googleClientSecret))
+{
+    authenticationBuilder.AddGoogle(options =>
     {
-        options.SignInScheme = "External";
-        options.ClientId = builder.Configuration["Authentication:Google:ClientId"] ?? string.Empty;
-        options.ClientSecret = builder.Configuration["Authentication:Google:ClientSecret"] ?? string.Empty;
+        options.SignInScheme = IdentityConstants.ExternalScheme;
+        options.ClientId = googleClientId;
+        options.ClientSecret = googleClientSecret;
     });
+}
 
 var app = builder.Build();
+
+// Ép buộc toàn bộ hệ thống hiểu rằng đang chạy trên HTTPS (Khắc phục triệt để lỗi proxy của tryasp.net)
+app.Use((context, next) =>
+{
+    context.Request.Scheme = "https";
+    return next(context);
+});
 
 // Cấu hình luồng xử lý request của ứng dụng.
 if (!app.Environment.IsDevelopment())
@@ -49,6 +73,42 @@ app.UseSession();
 app.UseAuthentication();
 app.UseAuthorization();
 
+app.MapAreaControllerRoute(
+    name: "quanly-root",
+    areaName: "QuanLy",
+    pattern: "QuanLy/{action=Index}/{id?}",
+    defaults: new { controller = "QuanLy" });
+
+app.MapAreaControllerRoute(
+    name: "nhanvien-root",
+    areaName: "NhanVien",
+    pattern: "NhanVien/{action=Index}/{id?}",
+    defaults: new { controller = "NhanVien" });
+
+app.MapAreaControllerRoute(
+    name: "khachhang-root",
+    areaName: "KhachHang",
+    pattern: "{controller=Home}/{action=Index}/{id?}");
+
+app.MapControllerRoute(
+    name: "LichSuDonHang",
+    pattern: "LichSuDonHang",
+    defaults: new { area = "KhachHang", controller = "TaiKhoan", action = "LichSuDonHang" });
+
+app.MapControllerRoute(
+    name: "TimKiem",
+    pattern: "TimKiem",
+    defaults: new { area = "KhachHang", controller = "Home", action = "TimKiem" });
+
+app.MapControllerRoute(
+    name: "DangXuat",
+    pattern: "DangXuat",
+    defaults: new { area = "KhachHang", controller = "DangNhap", action = "DangXuat" });
+
+app.MapControllerRoute(
+    name: "areas",
+    pattern: "{area:exists}/{controller=Home}/{action=Index}/{id?}");
+
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}");
@@ -56,8 +116,11 @@ app.MapControllerRoute(
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    db.Database.EnsureCreated();
+    db.Database.Migrate();
     SeedData(db);
+    EnsureSeedKhachHangPasswords(db);
+    EnsureNhanVienPasswords(db);
+    await EnsureIdentityAccounts(scope.ServiceProvider, db);
 }
 
 app.Run();
@@ -143,4 +206,170 @@ static void SeedData(ApplicationDbContext db)
     order.TongTien = order.ChiTiet.Sum(i => i.SoLuong * i.DonGia - i.TienGiam);
     db.DonHangs.Update(order);
     db.SaveChanges();
+}
+
+static void EnsureNhanVienPasswords(ApplicationDbContext db)
+{
+    var nhanViens = db.NhanViens
+        .Where(n => n.KichHoat && string.IsNullOrWhiteSpace(n.MatKhauHash))
+        .ToList();
+
+    if (nhanViens.Count == 0) return;
+
+    var passwordHasher = new PasswordHasher<NhanVien>();
+    foreach (var nhanVien in nhanViens)
+    {
+        nhanVien.MatKhauHash = passwordHasher.HashPassword(nhanVien, "123456");
+    }
+
+    db.SaveChanges();
+}
+
+static void EnsureSeedKhachHangPasswords(ApplicationDbContext db)
+{
+    var seedEmails = new[] { "dung@gmail.com", "hanh@gmail.com", "khoi@gmail.com" };
+    var khachHangs = db.KhachHangs
+        .Where(k => k.KichHoat &&
+            k.Email != null &&
+            seedEmails.Contains(k.Email) &&
+            string.IsNullOrWhiteSpace(k.MatKhauHash))
+        .ToList();
+
+    if (khachHangs.Count == 0) return;
+
+    var passwordHasher = new PasswordHasher<KhachHang>();
+    foreach (var khachHang in khachHangs)
+    {
+        khachHang.MatKhauHash = passwordHasher.HashPassword(khachHang, "123456");
+    }
+
+    db.SaveChanges();
+}
+
+static async Task EnsureIdentityAccounts(IServiceProvider services, ApplicationDbContext db)
+{
+    var userManager = services.GetRequiredService<UserManager<ApplicationUser>>();
+    var roleManager = services.GetRequiredService<RoleManager<IdentityRole>>();
+
+    foreach (var roleName in new[] { "KhachHang", "NhanVien", "QuanLy" })
+    {
+        if (!await roleManager.RoleExistsAsync(roleName))
+        {
+            await roleManager.CreateAsync(new IdentityRole(roleName));
+        }
+    }
+
+    var khachHangs = db.KhachHangs.Where(k => k.KichHoat).ToList();
+    foreach (var khachHang in khachHangs)
+    {
+        var user = await TimIdentityUser(userManager, "KhachHang", khachHang.Id, khachHang.Email, khachHang.DienThoai);
+        if (user == null)
+        {
+            user = new ApplicationUser
+            {
+                UserName = $"khachhang-{khachHang.Id}",
+                HoTen = khachHang.HoTen,
+                Email = khachHang.Email,
+                PhoneNumber = khachHang.DienThoai,
+                LoaiTaiKhoan = "KhachHang",
+                KhachHangId = khachHang.Id,
+                PasswordHash = khachHang.MatKhauHash
+            };
+
+            await userManager.CreateAsync(user);
+        }
+        else
+        {
+            user.HoTen = khachHang.HoTen;
+            user.Email = khachHang.Email;
+            user.PhoneNumber = khachHang.DienThoai;
+            user.LoaiTaiKhoan = "KhachHang";
+            user.KhachHangId = khachHang.Id;
+            await userManager.UpdateAsync(user);
+        }
+
+        await DamBaoVaiTro(userManager, user, "KhachHang");
+    }
+
+    var nhanViens = db.NhanViens.Where(n => n.KichHoat).ToList();
+    foreach (var nhanVien in nhanViens)
+    {
+        var vaiTro = LaQuanLy(nhanVien.ChucVu) ? "QuanLy" : "NhanVien";
+        var user = await TimIdentityUser(userManager, vaiTro, nhanVien.Id, nhanVien.Email, nhanVien.DienThoai);
+        if (user == null)
+        {
+            user = new ApplicationUser
+            {
+                UserName = $"nhanvien-{nhanVien.Id}",
+                HoTen = nhanVien.HoTen,
+                Email = nhanVien.Email,
+                PhoneNumber = nhanVien.DienThoai,
+                LoaiTaiKhoan = vaiTro,
+                NhanVienId = nhanVien.Id,
+                PasswordHash = nhanVien.MatKhauHash
+            };
+
+            await userManager.CreateAsync(user);
+        }
+        else
+        {
+            user.HoTen = nhanVien.HoTen;
+            user.Email = nhanVien.Email;
+            user.PhoneNumber = nhanVien.DienThoai;
+            user.LoaiTaiKhoan = vaiTro;
+            user.NhanVienId = nhanVien.Id;
+            await userManager.UpdateAsync(user);
+        }
+
+        await DamBaoVaiTro(userManager, user, vaiTro);
+    }
+}
+
+static async Task<ApplicationUser?> TimIdentityUser(
+    UserManager<ApplicationUser> userManager,
+    string loaiTaiKhoan,
+    int idNguoiDung,
+    string? email,
+    string? dienThoai)
+{
+    ApplicationUser? user = loaiTaiKhoan == "KhachHang"
+        ? await userManager.Users.FirstOrDefaultAsync(u => u.KhachHangId == idNguoiDung)
+        : await userManager.Users.FirstOrDefaultAsync(u => u.NhanVienId == idNguoiDung);
+
+    if (user != null) return user;
+
+    if (!string.IsNullOrWhiteSpace(email))
+    {
+        user = await userManager.Users.FirstOrDefaultAsync(u =>
+            u.Email == email &&
+            ((loaiTaiKhoan == "KhachHang" && u.LoaiTaiKhoan == "KhachHang") ||
+             (loaiTaiKhoan != "KhachHang" && u.LoaiTaiKhoan != "KhachHang")));
+    }
+
+    if (user != null || string.IsNullOrWhiteSpace(dienThoai)) return user;
+
+    return await userManager.Users.FirstOrDefaultAsync(u =>
+        u.PhoneNumber == dienThoai &&
+        ((loaiTaiKhoan == "KhachHang" && u.LoaiTaiKhoan == "KhachHang") ||
+         (loaiTaiKhoan != "KhachHang" && u.LoaiTaiKhoan != "KhachHang")));
+}
+
+static async Task DamBaoVaiTro(UserManager<ApplicationUser> userManager, ApplicationUser user, string vaiTro)
+{
+    var roles = await userManager.GetRolesAsync(user);
+    foreach (var role in roles.Where(r => r != vaiTro))
+    {
+        await userManager.RemoveFromRoleAsync(user, role);
+    }
+
+    if (!await userManager.IsInRoleAsync(user, vaiTro))
+    {
+        await userManager.AddToRoleAsync(user, vaiTro);
+    }
+}
+
+static bool LaQuanLy(string? chucVu)
+{
+    var text = (chucVu ?? string.Empty).Trim().ToLowerInvariant();
+    return text.Contains("quan") || text.Contains("quản");
 }

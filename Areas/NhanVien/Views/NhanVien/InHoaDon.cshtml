@@ -1,0 +1,237 @@
+@using WebQLministop.Models
+@model DonHang
+@{
+    Layout = null;
+    var tongTienGoc = Model.ChiTiet.Sum(c => c.SoLuong * c.DonGia);
+    var khuyenMai = Model.ChiTiet.Sum(c => c.TienGiam);
+    var diemSuDung = Model.DiemThuongSuDung;
+    var tongPhaiThanhToan = tongTienGoc - khuyenMai - diemSuDung;
+    var isSePay = Model.PhuongThucThanhToan == "ChuyenKhoan";
+}
+
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Hóa đơn #@Model.Id</title>
+    <style>
+        body {
+            font-family: 'Courier New', Courier, monospace;
+            margin: 0;
+            padding: 10px;
+            background: #fff;
+            color: #000;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+
+        .receipt-container {
+            width: 100%;
+            max-width: 300px; /* ~80mm */
+            margin: 0 auto;
+        }
+
+        .text-center { text-align: center; }
+        .text-left { text-align: left; }
+        .text-right { text-align: right; }
+        .font-bold { font-weight: bold; }
+        
+        .header h1 {
+            font-size: 18px;
+            margin: 5px 0;
+            text-transform: uppercase;
+        }
+        
+        .header p { margin: 2px 0; }
+
+        .divider {
+            border-bottom: 1px dashed #000;
+            margin: 8px 0;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 2px 0;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 8px 0;
+        }
+
+        th, td {
+            text-align: left;
+            padding: 2px 0;
+            vertical-align: top;
+        }
+
+        th { border-bottom: 1px dashed #000; }
+        
+        .col-qty { width: 15%; text-align: center; }
+        .col-name { width: 50%; }
+        .col-price { width: 35%; text-align: right; }
+
+        .totals {
+            margin-top: 10px;
+        }
+
+        .totals .total-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 3px 0;
+        }
+
+        .totals .final-total {
+            font-size: 14px;
+            font-weight: bold;
+            margin-top: 5px;
+            padding-top: 5px;
+            border-top: 1px solid #000;
+        }
+
+        .footer {
+            margin-top: 15px;
+            text-align: center;
+        }
+
+        @@media print {
+            body { margin: 0; padding: 0; background: #fff; }
+            .receipt-container { max-width: 100%; width: 100%; border: none; padding: 0; margin: 0; box-shadow: none; }
+            .no-print { display: none !important; }
+        }
+        
+        .receipt-container {
+            width: 100%;
+            max-width: 300px;
+            margin: 20px auto;
+            border: 1px solid #ddd;
+            padding: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        .action-bar {
+            text-align: center;
+            margin-bottom: 20px;
+            padding: 10px;
+            background: #f8fafc;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        
+        .btn {
+            padding: 8px 16px;
+            margin: 0 5px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        .btn-print { background: #3b82f6; color: white; }
+        .btn-close { background: #64748b; color: white; }
+    </style>
+</head>
+<body>
+    <div class="action-bar no-print">
+        <button class="btn btn-print" onclick="window.print()">🖨️ In Hóa Đơn</button>
+        <button class="btn btn-close" onclick="window.close()">Đóng</button>
+    </div>
+
+    <div class="receipt-container">
+        <div class="header text-center">
+            <h1>MINISTOP</h1>
+            <p>Hệ thống cửa hàng tiện lợi</p>
+            <p>Địa chỉ: 123 Đường ABC, Quận XYZ, TP.HCM</p>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="info-row">
+            <span>Mã HĐ:</span>
+            <span class="font-bold">#@Model.Id</span>
+        </div>
+        <div class="info-row">
+            <span>Ngày:</span>
+            <span>@Model.NgayDat.ToString("dd/MM/yyyy HH:mm")</span>
+        </div>
+        <div class="info-row">
+            <span>Thu ngân:</span>
+            <span>@(Model.NhanVien?.HoTen ?? "Hệ thống")</span>
+        </div>
+        <div class="info-row">
+            <span>Khách hàng:</span>
+            <span>@(Model.KhachHang?.HoTen ?? "Khách lẻ")</span>
+        </div>
+
+        <div class="divider"></div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th class="col-qty">SL</th>
+                    <th class="col-name">Tên món</th>
+                    <th class="col-price">T.Tiền</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in Model.ChiTiet)
+                {
+                    <tr>
+                        <td class="col-qty">@item.SoLuong</td>
+                        <td class="col-name">@item.SanPham?.Ten</td>
+                        <td class="col-price">@((item.SoLuong * item.DonGia).ToString("N0"))</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+
+        <div class="divider"></div>
+
+        <div class="totals">
+            <div class="total-row">
+                <span>Tổng tiền hàng:</span>
+                <span>@tongTienGoc.ToString("N0")</span>
+            </div>
+            @if (khuyenMai > 0)
+            {
+                <div class="total-row">
+                    <span>Khuyến mãi/Giảm giá:</span>
+                    <span>-@khuyenMai.ToString("N0")</span>
+                </div>
+            }
+            @if (diemSuDung > 0)
+            {
+                <div class="total-row">
+                    <span>Sử dụng điểm:</span>
+                    <span>-@diemSuDung.ToString("N0")</span>
+                </div>
+            }
+            <div class="total-row final-total">
+                <span>THÀNH TIỀN:</span>
+                <span>@tongPhaiThanhToan.ToString("N0")</span>
+            </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="info-row">
+            <span>Hình thức TT:</span>
+            <span class="font-bold">@(isSePay ? "Chuyển khoản QR" : "Tiền mặt")</span>
+        </div>
+        @if (Model.DiemThuongCong > 0)
+        {
+            <div class="info-row">
+                <span>Điểm tích thêm:</span>
+                <span>+@Model.DiemThuongCong điểm</span>
+            </div>
+        }
+
+        <div class="footer">
+            <p class="font-bold">CẢM ƠN QUÝ KHÁCH & HẸN GẶP LẠI!</p>
+            <p>Hotline: 1900 1234</p>
+        </div>
+    </div>
+</body>
+</html>

@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using WebQLministop.Data;
 
@@ -11,9 +12,11 @@ using WebQLministop.Data;
 namespace WebQLministop.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260616102308_AddDonHangDeliveryPaymentInfo")]
+    partial class AddDonHangDeliveryPaymentInfo
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -377,11 +380,6 @@ namespace WebQLministop.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
 
-                    b.Property<string>("KenhBanHang")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
-
                     b.Property<int>("KhachHangId")
                         .HasColumnType("int");
 
@@ -392,7 +390,7 @@ namespace WebQLministop.Migrations
                     b.Property<DateTime>("NgayDat")
                         .HasColumnType("datetime2");
 
-                    b.Property<int?>("NhanVienId")
+                    b.Property<int>("NhanVienId")
                         .HasColumnType("int");
 
                     b.Property<string>("PhuongThucThanhToan")
@@ -819,7 +817,9 @@ namespace WebQLministop.Migrations
 
                     b.HasOne("WebQLministop.Models.NhanVien", "NhanVien")
                         .WithMany()
-                        .HasForeignKey("NhanVienId");
+                        .HasForeignKey("NhanVienId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("KhachHang");
 

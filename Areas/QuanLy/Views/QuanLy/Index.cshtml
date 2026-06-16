@@ -1,0 +1,928 @@
+@using System.Globalization
+@using WebQLministop.Models
+@{
+    ViewData["Title"] = "Tổng quan";
+    ViewData["PageHeading"] = "Tổng quan cửa hàng";
+    ViewData["HideCategories"] = true;
+
+    var culture = new CultureInfo("vi-VN");
+    var sanPhams = ViewBag.SanPhams as List<SanPham> ?? new List<SanPham>();
+    var donHangs = ViewBag.DonHangs as List<DonHang> ?? new List<DonHang>();
+    var khachHangs = ViewBag.KhachHangs as List<KhachHang> ?? new List<KhachHang>();
+    var nhanViens = ViewBag.NhanViens as List<NhanVien> ?? new List<NhanVien>();
+    var khuyenMais = ViewBag.KhuyenMais as List<KhuyenMai> ?? new List<KhuyenMai>();
+    var danhMucs = ViewBag.DanhMucs as List<DanhMuc> ?? new List<DanhMuc>();
+    var nhaCungCaps = ViewBag.NhaCungCaps as List<NhaCungCap> ?? new List<NhaCungCap>();
+    var topSanPhams = donHangs
+        .SelectMany(d => d.ChiTiet)
+        .Where(c => c.SanPham != null)
+        .GroupBy(c => c.SanPham!.Ten)
+        .Select(g => new { Ten = g.Key, SoLuong = g.Sum(c => c.SoLuong) })
+        .OrderByDescending(x => x.SoLuong)
+        .Take(5)
+        .ToList();
+
+    decimal doanhThuHomNay = ViewBag.DoanhThuHomNay ?? 0m;
+    int soHoaDonHomNay = ViewBag.SoHoaDonHomNay ?? 0;
+    int sanPhamSapHet = ViewBag.SanPhamSapHet ?? 0;
+    int nhanVienKichHoat = ViewBag.NhanVienKichHoat ?? 0;
+    int khachHangKichHoat = ViewBag.KhachHangKichHoat ?? 0;
+    int khuyenMaiDangChay = ViewBag.KhuyenMaiDangChay ?? 0;
+    int khuyenMaiSapHetHan = ViewBag.KhuyenMaiSapHetHan ?? 0;
+    int khuyenMaiDaKetThuc = ViewBag.KhuyenMaiDaKetThuc ?? 0;
+
+    string Money(decimal value) => string.Format(culture, "{0:N0}đ", value);
+    string RawNumber(decimal value) => value.ToString(CultureInfo.InvariantCulture);
+    string DateText(DateTime value) => value.ToLocalTime().ToString("dd/MM/yyyy", culture);
+    string TimeText(DateTime value) => value.ToLocalTime().ToString("HH:mm", culture);
+    string ProductStatus(SanPham product) => !product.KichHoat ? "Ngừng bán" : product.TonKho <= 0 ? "Hết hàng" : product.TonKho <= product.MucCanNhapLai ? "Sắp hết" : "Đang bán";
+    string ProductBadge(SanPham product) => !product.KichHoat || product.TonKho <= 0 ? "danger" : product.TonKho <= product.MucCanNhapLai ? "warning" : "success";
+    string OrderBadge(string status) => status == "ThanhCong" || status == "DaThanhToan" ? "success" : status == "ChoXuLy" || status == "DangXuLy" ? "warning" : "info";
+    string OrderText(string? status) => status switch
+    {
+        "ThanhCong" => "Thành công",
+        "ChoXuLy" => "Chờ xử lý",
+        "DaThanhToan" => "Đã thanh toán",
+        "DangXuLy" => "Đang xử lý",
+        "DaHuy" => "Đã hủy",
+        _ => string.IsNullOrWhiteSpace(status) ? "Chưa rõ" : status
+    };
+    string HienThiDanhMuc(string? ten) => ten switch
+    {
+        "Do uong" => "Đồ uống",
+        "Banh keo" => "Bánh kẹo",
+        "Thuc pham" => "Thực phẩm",
+        "Gia dung" => "Gia dụng",
+        _ => string.IsNullOrWhiteSpace(ten) ? "Chưa phân loại" : ten
+    };
+    string HienThiChucVu(string? chucVu) => chucVu switch
+    {
+        "Quan ly" => "Quản lý",
+        "Nhan vien" => "Nhân viên",
+        "Thu ngan" => "Thu ngân",
+        "Pha che" => "Pha chế",
+        "Kho" => "Kho",
+        _ => string.IsNullOrWhiteSpace(chucVu) ? "Chưa phân quyền" : chucVu
+    };
+    string HienThiThanhToan(string? phuongThuc) => phuongThuc switch
+    {
+        "TienMat" => "Tiền mặt",
+        "ChuyenKhoan" => "Chuyển khoản",
+        _ => string.IsNullOrWhiteSpace(phuongThuc) ? "Chưa rõ" : phuongThuc
+    };
+    string PromoBadge(KhuyenMai promo) => promo.NgayKetThuc < DateTime.UtcNow ? "danger" : promo.NgayKetThuc <= DateTime.UtcNow.AddDays(7) ? "warning" : "success";
+    string PromoText(KhuyenMai promo) => promo.NgayKetThuc < DateTime.UtcNow ? "Đã kết thúc" : promo.NgayKetThuc <= DateTime.UtcNow.AddDays(7) ? "Sắp hết hạn" : "Đang chạy";
+
+    var chartDays = Enumerable.Range(0, 7)
+        .Select(offset => DateTime.UtcNow.Date.AddDays(offset - 6))
+        .Select(day => new
+        {
+            Day = day,
+            Total = donHangs.Where(o => o.NgayDat.Date == day).Sum(o => o.TongTien)
+        })
+        .ToList();
+    var maxChartTotal = chartDays.Any() ? chartDays.Max(d => d.Total) : 0m;
+}
+
+<div class="manager-page-stack">
+    @if (TempData["QuanLyMessage"] is string quanLyMessage)
+    {
+        <div class="alert-row @(TempData["QuanLyMessageType"]?.ToString() == "danger" ? "danger" : "info")"><span>i</span><p>@quanLyMessage</p></div>
+    }
+
+    <section id="dashboard" class="manager-page space-y-6" data-page="dashboard">
+        <div class="manager-hero">
+            <div>
+                <p class="eyebrow">Dashboard</p>
+                <h2 style="font-size: 2.5rem; font-weight: 800; line-height: 1.2;">Tổng quan cửa hàng</h2>
+
+            </div>
+            <div class="hero-panel">
+                <span>Doanh thu hôm nay</span>
+                <strong>@Money(doanhThuHomNay)</strong>
+                <small class="text-sky-100">@soHoaDonHomNay hóa đơn trong ngày</small>
+            </div>
+        </div>
+
+        <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <article class="stat-card"><span class="stat-icon bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-200">₫</span><p>Doanh thu hôm nay</p><strong>@Money(doanhThuHomNay)</strong><small>Từ hóa đơn hôm nay</small></article>
+            <article class="stat-card"><span class="stat-icon bg-sky-100 text-sky-700 dark:bg-sky-500/15 dark:text-sky-200">#</span><p>Số hóa đơn</p><strong>@soHoaDonHomNay</strong><small>@donHangs.Count tổng hóa đơn</small></article>
+            <article class="stat-card"><span class="stat-icon bg-amber-100 text-amber-700 dark:bg-amber-400/15 dark:text-amber-200">!</span><p>Sản phẩm sắp hết</p><strong>@sanPhamSapHet</strong><small>@sanPhams.Count sản phẩm đang quản lý</small></article>
+            <article class="stat-card"><span class="stat-icon bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200">◎</span><p>Nhân viên hoạt động</p><strong>@nhanVienKichHoat</strong><small>@nhanViens.Count hồ sơ nhân viên</small></article>
+        </div>
+
+        <div class="grid gap-5 xl:grid-cols-[minmax(0,1.45fr)_minmax(320px,.85fr)]">
+            <article class="manager-card">
+                <div class="card-head">
+                    <div><p class="eyebrow">Revenue</p><h3>Doanh thu 7 ngày</h3></div>
+                    <button class="btn-ghost" type="button" onclick="window.location.href='/QuanLy/QuanLy/XuatBaoCaoExcel'">Xuất báo cáo</button>
+                </div>
+                <div class="chart-bars" aria-label="Biểu đồ doanh thu 7 ngày">
+                    @foreach (var day in chartDays)
+                    {
+                        var percent = maxChartTotal <= 0 ? 0 : Math.Max(8, (int)Math.Round(day.Total / maxChartTotal * 100));
+                        <span style="--h:@percent%"><b>@day.Day.ToLocalTime().ToString("dd/MM", culture)</b></span>
+                    }
+                </div>
+            </article>
+
+            <article class="manager-card">
+                <div class="card-head"><div><p class="eyebrow">Best sellers</p><h3>Sản phẩm bán chạy</h3></div></div>
+                @if (topSanPhams.Any())
+                {
+                    <div class="space-y-4">
+                        @{ var rank = 1; }
+                        @foreach (var item in topSanPhams)
+                        {
+                            <div class="rank-row" style="display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #1e293b;">
+                                <div style="display: flex; gap: 12px; align-items: center;">
+                                    <span style="font-weight: bold; color: #64748b;">@rank.ToString("00")</span>
+                                    <div>
+                                        <strong style="display: block;">@(item.Ten.Replace("Khan giay 4 lop", "Khăn giấy 4 lớp").Replace("Mi Omachi", "Mì Omachi"))</strong>
+                                        <small style="display: block; color: #9ca3af; margin-top: 2px;">Đã bán @item.SoLuong sản phẩm</small>
+                                    </div>
+                                </div>
+                            </div>
+                            rank++;
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div class="empty-state compact"><span>◇</span><h3>Chưa có dữ liệu bán chạy</h3><p>Khi có hóa đơn, danh sách sản phẩm bán chạy sẽ hiển thị tại đây.</p></div>
+                }
+            </article>
+        </div>
+
+        <div class="grid gap-5 xl:grid-cols-[minmax(0,1.25fr)_minmax(320px,.75fr)]">
+            <article class="manager-card overflow-hidden">
+                <div class="card-head"><div><p class="eyebrow">Orders</p><h3>Đơn hàng gần đây</h3></div><button class="btn-secondary" type="button" data-page-link="orders">Xem tất cả</button></div>
+                <div class="table-wrap">
+                    <table class="manager-table">
+                        <thead><tr><th>Mã đơn</th><th>Khách hàng</th><th>Nhân viên</th><th>Tổng tiền</th><th>Trạng thái</th><th>Thời gian</th></tr></thead>
+                        <tbody>
+                            @foreach (var order in donHangs.Take(5))
+                            {
+                                <tr><td>HD-@order.Id.ToString("0000")</td><td>@(order.KhachHang?.HoTen?.Replace("Khach le", "Khách lẻ").Replace("Khach Hang Mau", "Khách hàng mẫu") ?? "Khách lẻ")</td><td>@(order.NhanVien?.HoTen?.Replace("Quan Ly Mau", "Quản lý mẫu") ?? "Chưa gán")</td><td>@Money(order.TongTien)</td><td><span class="badge @OrderBadge(order.TrangThai)">@OrderText(order.TrangThai)</span></td><td>@TimeText(order.NgayDat)</td></tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+                @if (!donHangs.Any())
+                {
+                    <div class="empty-state compact"><span>◇</span><h3>Chưa có hóa đơn</h3><p>Dữ liệu hóa đơn sẽ xuất hiện sau khi hệ thống phát sinh đơn hàng.</p></div>
+                }
+            </article>
+
+            <div class="grid gap-5">
+                <article class="manager-card">
+                    <div class="card-head"><div><p class="eyebrow">Alert</p><h3>Cảnh báo tồn kho</h3></div></div>
+                    <div class="space-y-3">
+                        @foreach (var product in sanPhams.Where(p => p.TonKho <= p.MucCanNhapLai).Take(4))
+                        {
+                            <div class="alert-row @(product.TonKho <= 0 ? "danger" : "warning")"><span>!</span><p>@product.Ten còn @product.TonKho @product.DonVi</p></div>
+                        }
+                        @if (!sanPhams.Any(p => p.TonKho <= p.MucCanNhapLai))
+                        {
+                            <div class="alert-row info"><span>i</span><p>Không có sản phẩm dưới mức cần nhập lại.</p></div>
+                        }
+                    </div>
+                </article>
+                <article class="manager-card">
+                    <div class="card-head"><div><p class="eyebrow">Promotion</p><h3>Khuyến mãi đang chạy</h3></div></div>
+                    <div class="timeline">
+                        @foreach (var promo in khuyenMais.Where(p => p.KichHoat && p.NgayBatDau <= DateTime.UtcNow && p.NgayKetThuc >= DateTime.UtcNow).Take(3))
+                        {
+                            <div style="display: flex; gap: 12px; padding: 8px 0; border-bottom: 1px solid #1e293b;">
+                                <span></span>
+                                <div>
+                                    <strong style="display: block;">@promo.Ten</strong>
+                                    <small style="display: block; color: #9ca3af; margin-top: 2px;">Giảm @promo.PhanTramGiam.ToString("0.##")% • @DateText(promo.NgayBatDau) - @DateText(promo.NgayKetThuc)</small>
+                                </div>
+                            </div>
+                        }
+                        @if (!khuyenMais.Any(p => p.KichHoat && p.NgayBatDau <= DateTime.UtcNow && p.NgayKetThuc >= DateTime.UtcNow))
+                        {
+                            <div><span></span><strong>Chưa có khuyến mãi</strong><small>Tạo chương trình khuyến mãi để hiển thị tại đây.</small></div>
+                        }
+                    </div>
+                </article>
+            </div>
+        </div>
+    </section>
+
+    <section id="products" class="manager-page hidden space-y-6" data-page="products">
+        <div class="page-title-row"><div><p class="eyebrow">Products</p><h2>Quản lý sản phẩm</h2></div><button class="btn-primary" data-open-modal type="button">Thêm sản phẩm</button></div>
+        @if (TempData["SanPhamMessage"] is string sanPhamMessage)
+        {
+            <div class="alert-row @(TempData["SanPhamMessageType"]?.ToString() == "danger" ? "danger" : "info")"><span>i</span><p>@sanPhamMessage</p></div>
+        }
+        <div class="filter-panel">
+            <label><span>Tìm kiếm</span><input data-product-search type="search" placeholder="Tên hoặc mã sản phẩm"></label>
+            <label><span>Danh mục</span><select data-product-category><option value="">Tất cả danh mục</option>@foreach (var category in danhMucs){<option value="@category.Id">@HienThiDanhMuc(category.Ten)</option>}</select></label>
+            <label><span>Trạng thái</span><select data-product-status><option value="">Tất cả trạng thái</option><option value="Đang bán">Đang bán</option><option value="Sắp hết">Sắp hết</option><option value="Hết hàng">Hết hàng</option><option value="Ngừng bán">Ngừng bán</option></select></label>
+            <label><span>Giá tối đa</span><input data-product-max-price type="number" min="0" step="1000" placeholder="Ví dụ 20000"></label>
+        </div>
+        <article class="manager-card overflow-hidden">
+            <div class="table-wrap">
+                <table class="manager-table">
+                    <thead><tr><th>Ảnh</th><th>Mã SP</th><th>Tên sản phẩm</th><th>Danh mục</th><th>Giá bán</th><th>Tồn kho</th><th>Trạng thái</th><th>Hành động</th></tr></thead>
+                    <tbody>
+                        @foreach (var product in sanPhams)
+                        {
+                            <tr data-product-row
+                                data-name="@product.Ten"
+                                data-code="@product.Ma"
+                                data-category="@product.DanhMucId"
+                                data-status="@ProductStatus(product)"
+                                data-price="@RawNumber(product.GiaBan)">
+                                <td>
+                                    <span class="product-thumb">
+                                        @if (!string.IsNullOrWhiteSpace(product.HinhAnh))
+                                        {
+                                            <img src="@product.HinhAnh" alt="@product.Ten" class="h-full w-full rounded-xl object-cover" />
+                                        }
+                                        else
+                                        {
+                                            @product.Ten.FirstOrDefault()
+                                        }
+                                    </span>
+                                </td>
+                                <td>@product.Ma</td>
+                                <td>
+                                    <strong>@product.Ten</strong>
+                                    <small class="block text-slate-500">@(!string.IsNullOrWhiteSpace(product.MoTa) ? product.MoTa : "Chưa có mô tả")</small>
+                                </td>
+                                <td>@HienThiDanhMuc(product.DanhMuc?.Ten)</td>
+                                <td>@Money(product.GiaBan)</td>
+                                <td>@product.TonKho @product.DonVi</td>
+                                <td><span class="badge @ProductBadge(product)">@ProductStatus(product)</span></td>
+                                <td>
+                                    <div class="order-actions">
+                                        <button class="btn-secondary" type="button"
+                                                data-edit-product
+                                                data-id="@product.Id"
+                                                data-ma="@product.Ma"
+                                                data-ten="@product.Ten"
+                                                data-mota="@product.MoTa"
+                                                data-hinhanh="@product.HinhAnh"
+                                                data-danhmucid="@product.DanhMucId"
+                                                data-nhacungcapid="@product.NhaCungCapId"
+                                                data-giavon="@RawNumber(product.GiaVon)"
+                                                data-giaban="@RawNumber(product.GiaBan)"
+                                                data-donvi="@product.DonVi"
+                                                data-tonkho="@product.TonKho"
+                                                data-muccannhaplai="@product.MucCanNhapLai"
+                                                data-kichhoat="@product.KichHoat.ToString().ToLowerInvariant()">Sửa</button>
+                                        <form asp-area="QuanLy" asp-controller="QuanLy" asp-action="ToggleSanPham" method="post" class="inline-form">
+                                            @Html.AntiForgeryToken()
+                                            <input type="hidden" name="id" value="@product.Id">
+                                            <button class="btn-secondary" type="submit">@(product.KichHoat ? "Ngừng bán" : "Bật bán")</button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            @if (!sanPhams.Any())
+            {
+                <div class="empty-state compact"><span>□</span><h3>Chưa có sản phẩm</h3><p>Thêm sản phẩm đầu tiên để bắt đầu quản lý tồn kho.</p></div>
+            }
+            <div class="pagination-bar"><button type="button">‹</button><button class="active" type="button">1</button><button type="button">›</button></div>
+        </article>
+    </section>
+
+    <section id="categories" class="manager-page hidden space-y-6" data-page="categories">
+        <div class="page-title-row">
+            <div>
+                <p class="eyebrow">Categories</p>
+                <h2>Quản lý danh mục</h2>
+            </div>
+            <button class="btn-primary" data-open-category-modal type="button">Thêm danh mục</button>
+        </div>
+        <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <article class="stat-card"><p>Tổng danh mục</p><strong>@danhMucs.Count</strong><small>Đang có trong hệ thống</small></article>
+            <article class="stat-card"><p>Danh mục có hàng</p><strong>@danhMucs.Count(d => sanPhams.Any(p => p.DanhMucId == d.Id))</strong><small>Có sản phẩm liên kết</small></article>
+            <article class="stat-card"><p>Sản phẩm đã phân loại</p><strong>@sanPhams.Count(p => p.DanhMucId > 0)</strong><small>Từ bảng SanPhams</small></article>
+            <article class="stat-card"><p>Trung bình</p><strong>@(danhMucs.Any() ? Math.Round((decimal)sanPhams.Count / danhMucs.Count, 1) : 0)</strong><small>Sản phẩm/danh mục</small></article>
+        </div>
+        <article class="manager-card overflow-hidden">
+            <div class="table-wrap">
+                <table class="manager-table">
+                    <thead><tr><th>Mã DM</th><th>Tên danh mục</th><th>Mô tả</th><th>Số sản phẩm</th><th>Cập nhật</th></tr></thead>
+                    <tbody>
+                        @foreach (var category in danhMucs)
+                        {
+                            <tr>
+                                <td>DM-@category.Id.ToString("0000")</td>
+                                <td><strong>@HienThiDanhMuc(category.Ten)</strong></td>
+                                <td>@(category.MoTa ?? "-")</td>
+                                <td><span class="badge info">@sanPhams.Count(p => p.DanhMucId == category.Id) sản phẩm</span></td>
+                                <td>
+                                    <form asp-area="QuanLy" asp-controller="QuanLy" asp-action="UpdateDanhMuc" method="post" class="inline-form category-inline-form">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="Id" value="@category.Id">
+                                        <input name="Ten" value="@category.Ten" maxlength="100" required>
+                                        <input name="MoTa" value="@category.MoTa" maxlength="250" placeholder="Mô tả">
+                                        <button class="btn-secondary" type="submit">Lưu</button>
+                                    </form>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            @if (!danhMucs.Any())
+            {
+                <div class="empty-state compact"><span>DM</span><h3>Chưa có danh mục</h3><p>Thêm danh mục để phân loại sản phẩm trong cửa hàng.</p></div>
+            }
+        </article>
+    </section>
+
+    <section id="orders" class="manager-page hidden space-y-6" data-page="orders">
+        <div class="page-title-row"><div><p class="eyebrow">Orders</p><h2>Quản lý đơn hàng</h2></div></div>
+        <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <article class="stat-card"><p>Tổng đơn hôm nay</p><strong>@soHoaDonHomNay</strong><small>Từ dữ liệu DonHangs</small></article>
+            <article class="stat-card"><p>Đã thanh toán</p><strong>@donHangs.Count(o => o.TrangThai == "DaThanhToan")</strong><small>Trạng thái đã thanh toán</small></article>
+            <article class="stat-card"><p>Đang xử lý</p><strong>@donHangs.Count(o => o.TrangThai == "DangXuLy")</strong><small>Trạng thái đang xử lý</small></article>
+            <article class="stat-card"><p>Doanh thu đơn hàng</p><strong>@Money(donHangs.Sum(o => o.TongTien))</strong><small>Tổng toàn bộ hóa đơn</small></article>
+        </div>
+        <div class="filter-panel">
+            <label><span>Mã đơn</span><input id="orderSearch" placeholder="Nhập mã hóa đơn"></label>
+            <label><span>Kênh bán</span><select id="orderChannel"><option value="">Tất cả</option><option value="Web">Web</option><option value="Tại quầy">Tại quầy</option></select></label>
+            <label><span>Trạng thái</span><select id="orderStatus"><option value="">Tất cả</option><option value="Đã thanh toán">Đã thanh toán</option><option value="Đang xử lý">Đang xử lý</option><option value="Thành công">Thành công</option><option value="Đã hủy">Đã hủy</option></select></label>
+        </div>
+        <article class="manager-card overflow-hidden">
+            <div class="table-wrap"><table class="manager-table"><thead><tr><th>Mã đơn</th><th>Khách hàng</th><th>Kênh bán</th><th>Địa chỉ</th><th>Nhân viên</th><th>SL</th><th>Tổng tiền</th><th>Thanh toán</th><th>Trạng thái</th><th>Hành động</th></tr></thead><tbody>@foreach (var order in donHangs){<tr data-order-row data-code="HD-@order.Id.ToString("0000")" data-channel="@(order.KenhBanHang == "Web" ? "Web" : "Tại quầy")" data-status="@OrderText(order.TrangThai)"><td>HD-@order.Id.ToString("0000")</td><td>@(order.KhachHang?.HoTen?.Replace("Khach le", "Khách lẻ").Replace("Khach Hang Mau", "Khách hàng mẫu") ?? "Khách lẻ")</td><td><span class="badge info">@(order.KenhBanHang == "Web" ? "Web" : "Tại quầy")</span></td><td><small>@(string.IsNullOrWhiteSpace(order.DiaChiGiaoHang) ? "Tại quầy" : order.DiaChiGiaoHang)</small></td><td>@(order.NhanVien?.HoTen?.Replace("Quan Ly Mau", "Quản lý mẫu") ?? "Hệ thống Web")</td><td>@order.ChiTiet.Sum(i => i.SoLuong)</td><td>@Money(order.TongTien)</td><td>@HienThiThanhToan(order.PhuongThucThanhToan)</td><td><span class="badge @OrderBadge(order.TrangThai)">@OrderText(order.TrangThai)</span></td><td><div class="order-actions"><button class="invoice-detail-btn" data-open-panel data-invoice-id="@order.Id" type="button">Xem chi tiết</button><form asp-area="QuanLy" asp-controller="QuanLy" asp-action="CapNhatTrangThaiDonHang" method="post" class="inline-form">@Html.AntiForgeryToken()<input type="hidden" name="id" value="@order.Id"><select name="trangThai"><option value="DangXuLy" selected="@(order.TrangThai == "DangXuLy")">Đang xử lý</option><option value="DaThanhToan" selected="@(order.TrangThai == "DaThanhToan")">Đã thanh toán</option><option value="ThanhCong" selected="@(order.TrangThai == "ThanhCong")">Thành công</option><option value="DaHuy" selected="@(order.TrangThai == "DaHuy")">Đã hủy</option></select><button class="btn-secondary" type="submit">Lưu</button></form></div></td></tr>}</tbody></table></div>
+            @if (!donHangs.Any()){<div class="empty-state compact"><span>◇</span><h3>Chưa có đơn hàng</h3><p>Hóa đơn sẽ hiển thị tại đây khi được tạo.</p></div>}
+        </article>
+    </section>
+
+    <section id="customers" class="manager-page hidden space-y-6" data-page="customers">
+        <div class="page-title-row"><div><p class="eyebrow">Customers</p><h2>Quản lý khách hàng</h2></div><button class="btn-secondary" type="button">Xuất danh sách</button></div>
+        <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <article class="stat-card"><p>Tổng khách hàng</p><strong>@khachHangs.Count</strong><small>Tất cả hồ sơ</small></article><article class="stat-card"><p>Tổng điểm thưởng</p><strong>@khachHangs.Sum(c => c.DiemThuong)</strong><small>Từ điểm thưởng</small></article><article class="stat-card"><p>Điểm trung bình</p><strong>@(khachHangs.Any() ? Math.Round(khachHangs.Average(c => c.DiemThuong), 0) : 0)</strong><small>Điểm/khách</small></article>
+        </div>
+        <article class="manager-card overflow-hidden"><div class="table-wrap"><table class="manager-table"><thead><tr><th>Mã KH</th><th>Tên khách hàng</th><th>SĐT</th><th>Email</th><th>Điểm thưởng</th><th>Trạng thái</th><th>Hành động</th></tr></thead><tbody>@foreach (var customer in khachHangs){<tr><td>KH-@customer.Id.ToString("0000")</td><td>@customer.HoTen</td><td>@(customer.DienThoai ?? "-")</td><td>@(customer.Email ?? "-")</td><td>@customer.DiemThuong</td><td><span class="badge @(customer.KichHoat ? "success" : "danger")">@(customer.KichHoat ? "Đang hoạt động" : "Ngừng")</span></td><td><button class="btn-secondary" data-open-customer-panel data-customer-id="@customer.Id" type="button">Chi tiết</button></td></tr>}</tbody></table></div>@if (!khachHangs.Any()){<div class="empty-state compact"><span>○</span><h3>Chưa có khách hàng</h3><p>Dữ liệu khách hàng sẽ xuất hiện khi có hồ sơ trong hệ thống.</p></div>}</article>
+    </section>
+
+    <section id="staff" class="manager-page hidden space-y-6" data-page="staff">
+        <div class="page-title-row"><div><p class="eyebrow">Staff</p><h2>Quản lý nhân viên</h2></div><button class="btn-primary" data-open-staff-modal type="button">Thêm nhân viên</button></div>
+        <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            @foreach (var staff in nhanViens.Take(4))
+            {
+                <article class="employee-card"><span>@staff.HoTen.Split(' ', StringSplitOptions.RemoveEmptyEntries).LastOrDefault()?.FirstOrDefault()</span><div><strong>@staff.HoTen</strong><small>@HienThiChucVu(staff.ChucVu)</small></div><em class="badge @(staff.KichHoat ? "success" : "danger")">@(staff.KichHoat ? "Đang hoạt động" : "Ngừng")</em></article>
+            }
+        </div>
+        <article class="manager-card overflow-hidden"><div class="table-wrap"><table class="manager-table"><thead><tr><th>Mã NV</th><th>Họ tên</th><th>SĐT</th><th>Email</th><th>Chức vụ / role</th><th>Lương</th><th>Trạng thái</th><th>Hành động</th></tr></thead><tbody>@foreach (var staff in nhanViens){<tr><td>NV-@staff.Id.ToString("0000")</td><td>@staff.HoTen</td><td>@(staff.DienThoai ?? "-")</td><td>@(staff.Email ?? "-")</td><td><form asp-area="QuanLy" asp-controller="QuanLy" asp-action="CapNhatChucVuNhanVien" method="post" class="inline-form role-inline-form">@Html.AntiForgeryToken()<input type="hidden" name="id" value="@staff.Id"><select name="chucVu"><option value="Nhan vien" selected="@(staff.ChucVu == "Nhan vien")">Nhân viên</option><option value="Thu ngan" selected="@(staff.ChucVu == "Thu ngan")">Thu ngân</option><option value="Pha che" selected="@(staff.ChucVu == "Pha che")">Pha chế</option><option value="Kho" selected="@(staff.ChucVu == "Kho")">Kho</option><option value="Quan ly" selected="@(staff.ChucVu == "Quan ly")">Quản lý</option></select><button class="btn-secondary" type="submit">Lưu role</button></form></td><td>@Money(staff.Luong)</td><td><span class="badge @(staff.KichHoat ? "success" : "danger")">@(staff.KichHoat ? "Đang hoạt động" : "Ngừng")</span></td><td><form asp-area="QuanLy" asp-controller="QuanLy" asp-action="ToggleNhanVien" method="post" class="inline-form">@Html.AntiForgeryToken()<input type="hidden" name="id" value="@staff.Id"><button class="btn-secondary" type="submit">@(staff.KichHoat ? "Ngừng" : "Kích hoạt")</button></form></td></tr>}</tbody></table></div>@if (!nhanViens.Any()){<div class="empty-state compact"><span>◎</span><h3>Chưa có nhân viên</h3><p>Thêm nhân viên để quản lý hồ sơ và phân quyền.</p></div>}</article>
+    </section>
+
+    <section id="suppliers" class="manager-page hidden space-y-6" data-page="suppliers">
+        <div class="page-title-row"><div><p class="eyebrow">Suppliers</p><h2>Quản lý nhà cung cấp</h2></div><button class="btn-primary" data-open-supplier-modal type="button">Thêm nhà cung cấp</button></div>
+        <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <article class="stat-card"><p>Tổng nhà cung cấp</p><strong>@nhaCungCaps.Count</strong><small>Đối tác đang lưu trong hệ thống</small></article>
+            <article class="stat-card"><p>Sản phẩm có NCC</p><strong>@sanPhams.Count(p => p.NhaCungCapId > 0)</strong><small>Từ bảng SanPhams</small></article>
+            <article class="stat-card"><p>NCC có email</p><strong>@nhaCungCaps.Count(n => !string.IsNullOrWhiteSpace(n.Email))</strong><small>Dễ liên hệ đặt hàng</small></article>
+            <article class="stat-card"><p>NCC có điện thoại</p><strong>@nhaCungCaps.Count(n => !string.IsNullOrWhiteSpace(n.DienThoai))</strong><small>Dùng khi cần nhập hàng nhanh</small></article>
+        </div>
+        <article class="manager-card overflow-hidden">
+            <div class="table-wrap">
+                <table class="manager-table">
+                    <thead><tr><th>Mã NCC</th><th>Nhà cung cấp</th><th>Người liên hệ</th><th>SĐT</th><th>Email</th><th>Địa chỉ</th><th>Số sản phẩm</th><th>Hành động</th></tr></thead>
+                    <tbody>
+                        @foreach (var supplier in nhaCungCaps)
+                        {
+                            var productCount = sanPhams.Count(p => p.NhaCungCapId == supplier.Id);
+                            <tr>
+                                <td>NCC-@supplier.Id.ToString("0000")</td>
+                                <td>@supplier.Ten</td>
+                                <td>@(supplier.TenLienHe ?? "-")</td>
+                                <td>@(supplier.DienThoai ?? "-")</td>
+                                <td>@(supplier.Email ?? "-")</td>
+                                <td>@(supplier.DiaChi ?? "-")</td>
+                                <td><span class="badge info">@productCount sản phẩm</span></td>
+                                <td><button class="btn-secondary" type="button">Chi tiết</button></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            @if (!nhaCungCaps.Any())
+            {
+                <div class="empty-state compact"><span>C</span><h3>Chưa có nhà cung cấp</h3><p>Khi thêm nhà cung cấp, quản lý có thể theo dõi nguồn hàng tại đây.</p></div>
+            }
+        </article>
+    </section>
+
+    <section id="promotions" class="manager-page hidden space-y-6" data-page="promotions">
+        <div class="page-title-row"><div><p class="eyebrow">Promotions</p><h2>Quản lý khuyến mãi</h2></div><button class="btn-primary" data-open-promo-modal type="button">Thêm khuyến mãi</button></div>
+        <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4"><article class="stat-card"><p>Đang chạy</p><strong>@khuyenMaiDangChay</strong><small>KichHoat = true</small></article><article class="stat-card"><p>Sắp hết hạn</p><strong>@khuyenMaiSapHetHan</strong><small>Trong 7 ngày</small></article><article class="stat-card"><p>Đã kết thúc</p><strong>@khuyenMaiDaKetThuc</strong><small>Qua ngày kết thúc</small></article><article class="stat-card"><p>Tổng chương trình</p><strong>@khuyenMais.Count</strong><small>Tất cả khuyến mãi</small></article></div>
+        <div class="grid gap-4 lg:grid-cols-3">@foreach (var promo in khuyenMais.Take(3)){<article class="promo-card"><span>KM-@promo.Id.ToString("0000")</span><h3>@promo.Ten</h3><p>@DateText(promo.NgayBatDau) - @DateText(promo.NgayKetThuc)</p><b>@PromoText(promo)</b></article>}</div>
+        <article class="manager-card overflow-hidden"><div class="table-wrap"><table class="manager-table"><thead><tr><th>Mã KM</th><th>Tên chương trình</th><th>Giảm giá</th><th>Bắt đầu</th><th>Kết thúc</th><th>Trạng thái</th><th>Hành động</th></tr></thead><tbody>@foreach (var promo in khuyenMais){<tr><td>KM-@promo.Id.ToString("0000")</td><td>@promo.Ten</td><td>@promo.PhanTramGiam.ToString("0.##")%</td><td>@DateText(promo.NgayBatDau)</td><td>@DateText(promo.NgayKetThuc)</td><td><span class="badge @PromoBadge(promo)">@PromoText(promo)</span></td><td><form asp-area="QuanLy" asp-controller="QuanLy" asp-action="ToggleKhuyenMai" method="post" class="inline-form">@Html.AntiForgeryToken()<input type="hidden" name="id" value="@promo.Id"><button class="btn-secondary" type="submit">@(promo.KichHoat ? "Tắt" : "Bật")</button></form></td></tr>}</tbody></table></div>@if (!khuyenMais.Any()){<div class="empty-state compact"><span>✦</span><h3>Chưa có khuyến mãi</h3><p>Tạo chương trình đầu tiên để bắt đầu quản lý ưu đãi.</p></div>}</article>
+    </section>
+</div>
+
+<div id="productModal" class="modal-shell hidden" aria-hidden="true">
+    <form id="productForm" class="modal-card product-modal-card" asp-area="QuanLy" asp-controller="QuanLy" asp-action="CreateSanPham" method="post">
+        @Html.AntiForgeryToken()
+        <input type="hidden" name="Id" value="0">
+        <div class="product-modal-hero">
+            <div class="product-modal-icon">SP</div>
+            <div style="display: flex; align-items: center;">
+                <h3 id="productModalTitle" style="font-size: 26px; font-weight: 800; margin: 0;">Thêm sản phẩm</h3>
+            </div>
+            <button class="btn-icon" data-close-modal type="button" aria-label="Đóng">×</button>
+        </div>
+        <div class="product-form-layout">
+            <section class="product-form-section">
+                <div class="form-section-title"><span>1</span><strong>Thông tin hiển thị</strong></div>
+                <div class="product-display-grid">
+                    <label><span>Tên sản phẩm</span><input name="Ten" placeholder="Nhập tên sản phẩm" maxlength="150" required></label>
+                    <label><span>Mã sản phẩm</span><input name="Ma" placeholder="Ví dụ DR001" maxlength="50" required></label>
+                    <label><span>Đơn vị tính</span><input name="DonVi" placeholder="chai, gói, hộp..." maxlength="30" value="cái" required></label>
+                    <label><span>Link hình ảnh</span><input name="HinhAnh" type="url" maxlength="500" placeholder="https://..."></label>
+                    <label class="product-description-field"><span>Mô tả</span><textarea name="MoTa" rows="3" maxlength="250" placeholder="Nhập mô tả ngắn..."></textarea></label>
+                </div>
+            </section>
+
+            <section class="product-form-section">
+                <div class="form-section-title"><span>2</span><strong>Phân loại & nguồn hàng</strong></div>
+                <div class="modal-grid">
+                    <label style="grid-column: span 1;">
+                        <span>Danh mục</span>
+                        <select name="DanhMucId" required>
+                            <option value="">Chọn danh mục</option>
+                            @foreach (var category in danhMucs)
+                            {
+                                <option value="@category.Id">@HienThiDanhMuc(category.Ten)</option>
+                            }
+                        </select>
+                    </label>
+                    <label style="grid-column: span 2;">
+                        <span>Nhà cung cấp</span>
+                        <select name="NhaCungCapId" required>
+                            <option value="">Chọn nhà cung cấp</option>
+                            @foreach (var supplier in nhaCungCaps)
+                            {
+                                <option value="@supplier.Id">@supplier.Ten</option>
+                            }
+                        </select>
+                    </label>
+                </div>
+            </section>
+
+            <section class="product-form-section">
+                <div class="form-section-title"><span>3</span><strong>Giá bán & tồn kho</strong></div>
+                <div class="modal-grid" style="margin-bottom: 0.9rem;">
+                    <label><span>Giá nhập</span><input name="GiaVon" type="number" min="0" step="1000" value="0" required></label>
+                    <label><span>Giá bán</span><input name="GiaBan" type="number" min="0" step="1000" value="0" required></label>
+                    <label><span>Tồn kho hiện tại</span><input name="TonKho" type="number" min="0" step="1" value="0" required></label>
+                </div>
+                <label style="display: block;"><span>Cảnh báo hết hàng khi tồn kho dưới:</span><input name="MucCanNhapLai" type="number" min="0" step="1" value="10" required></label>
+            </section>
+
+            <label class="product-publish-toggle">
+                <input name="KichHoat" type="checkbox" value="true" checked>
+                <span>
+                    <strong>Hiển thị trên trang chủ</strong>
+                    <small>Khách có thể tìm thấy sản phẩm và thêm vào giỏ hàng khi trạng thái này được bật.</small>
+                </span>
+            </label>
+        </div>
+        <div class="product-modal-actions"><button class="btn-secondary" data-close-modal type="button">Hủy</button><button id="productSubmitText" class="btn-primary" type="submit">Lưu sản phẩm</button></div>
+    </form>
+</div>
+
+<div id="categoryModal" class="modal-shell hidden" aria-hidden="true">
+    <form id="categoryForm" class="modal-card product-modal-card" style="max-width: 600px;" asp-area="QuanLy" asp-controller="QuanLy" asp-action="CreateDanhMuc" method="post">
+        @Html.AntiForgeryToken()
+        <div class="product-modal-hero">
+            <div class="product-modal-icon">DM</div>
+            <div style="display: flex; align-items: center;">
+                <h3 id="categoryModalTitle" style="font-size: 26px; font-weight: 800; margin: 0;">Thêm danh mục</h3>
+            </div>
+            <button class="btn-icon" data-close-category-modal type="button" aria-label="Đóng">×</button>
+        </div>
+        <div class="product-form-layout">
+            <section class="product-form-section" style="border-right: none; padding-right: 0;">
+                <label style="display: block; margin-bottom: 0.9rem;"><span>Tên danh mục</span><input name="Ten" placeholder="Ví dụ: Đồ uống lạnh" maxlength="100" required></label>
+                <label style="display: block;"><span>Mô tả</span><textarea name="MoTa" rows="3" maxlength="250" placeholder="Nhập mô tả ngắn..."></textarea></label>
+            </section>
+        </div>
+        <div class="product-modal-actions">
+            <button class="btn-secondary" data-close-category-modal type="button">Hủy</button>
+            <button class="btn-primary" type="submit">Lưu danh mục</button>
+        </div>
+    </form>
+</div>
+
+<div id="staffModal" class="modal-shell hidden" aria-hidden="true">
+    <form id="staffForm" class="modal-card product-modal-card staff-modal-card" asp-area="QuanLy" asp-controller="QuanLy" asp-action="CreateNhanVien" method="post">
+        @Html.AntiForgeryToken()
+        <div class="product-modal-hero">
+            <div class="product-modal-icon">NV</div>
+            <div style="display: flex; align-items: center;">
+                <h3 style="font-size: 26px; font-weight: 800; margin: 0;">Thêm nhân viên</h3>
+            </div>
+            <button class="btn-icon" data-close-staff-modal type="button" aria-label="Đóng">×</button>
+        </div>
+        <div class="product-form-layout">
+            <section class="product-form-section">
+                <div class="form-section-title"><span>1</span><strong>Thông tin nhân viên</strong></div>
+                <div class="staff-display-grid">
+                    <label><span>Họ tên</span><input name="HoTen" placeholder="Nguyễn Văn A" maxlength="120" required></label>
+                    <label><span>Chức vụ</span><select name="ChucVu" required><option value="Nhan vien">Nhân viên</option><option value="Thu ngan">Thu ngân</option><option value="Pha che">Pha chế</option><option value="Kho">Kho</option><option value="Quan ly">Quản lý</option></select></label>
+                    <label><span>Lương</span><input name="Luong" type="number" min="0" step="1000" value="0"></label>
+                    <label><span>SĐT</span><input name="DienThoai" placeholder="090..." maxlength="20"></label>
+                    <label><span>Email</span><input name="Email" type="email" placeholder="email@ministop.vn" maxlength="120"></label>
+                    <label><span>Mật khẩu</span><input name="matKhau" type="password" placeholder="Mặc định 123456" autocomplete="new-password"></label>
+                </div>
+            </section>
+        </div>
+        <div class="product-modal-actions">
+            <button class="btn-secondary" data-close-staff-modal type="button">Hủy</button>
+            <button class="btn-primary" type="submit">Lưu nhân viên</button>
+        </div>
+    </form>
+</div>
+
+<div id="supplierModal" class="modal-shell hidden" aria-hidden="true">
+    <form id="supplierForm" class="modal-card product-modal-card staff-modal-card" asp-area="QuanLy" asp-controller="QuanLy" asp-action="CreateNhaCungCap" method="post">
+        @Html.AntiForgeryToken()
+        <div class="product-modal-hero">
+            <div class="product-modal-icon">NCC</div>
+            <div style="display: flex; align-items: center;">
+                <h3 style="font-size: 26px; font-weight: 800; margin: 0;">Thêm nhà cung cấp</h3>
+            </div>
+            <button class="btn-icon" data-close-supplier-modal type="button" aria-label="Đóng">×</button>
+        </div>
+        <div class="product-form-layout">
+            <section class="product-form-section">
+                <div class="form-section-title"><span>1</span><strong>Thông tin nhà cung cấp</strong></div>
+                <div class="supplier-display-grid">
+                    <label><span>Tên NCC</span><input name="Ten" placeholder="Công ty..." maxlength="150" required></label>
+                    <label><span>Người liên hệ</span><input name="TenLienHe" placeholder="Tên liên hệ" maxlength="120"></label>
+                    <label><span>SĐT</span><input name="DienThoai" placeholder="090..." maxlength="20"></label>
+                    <label><span>Email</span><input name="Email" type="email" placeholder="ncc@email.com" maxlength="120"></label>
+                    <label class="supplier-address-field"><span>Địa chỉ</span><input name="DiaChi" placeholder="Địa chỉ" maxlength="250"></label>
+                </div>
+            </section>
+        </div>
+        <div class="product-modal-actions">
+            <button class="btn-secondary" data-close-supplier-modal type="button">Hủy</button>
+            <button class="btn-primary" type="submit">Lưu nhà cung cấp</button>
+        </div>
+    </form>
+</div>
+
+<div id="promoModal" class="modal-shell hidden" aria-hidden="true">
+    <form id="promoForm" class="modal-card product-modal-card staff-modal-card" asp-area="QuanLy" asp-controller="QuanLy" asp-action="CreateKhuyenMai" method="post">
+        @Html.AntiForgeryToken()
+        <div class="product-modal-hero">
+            <div class="product-modal-icon">KM</div>
+            <div style="display: flex; align-items: center;">
+                <h3 style="font-size: 26px; font-weight: 800; margin: 0;">Thêm khuyến mãi</h3>
+            </div>
+            <button class="btn-icon" data-close-promo-modal type="button" aria-label="Đóng">×</button>
+        </div>
+        <div class="product-form-layout">
+            <section class="product-form-section">
+                <div class="form-section-title"><span>1</span><strong>Thông tin khuyến mãi</strong></div>
+                <div class="promo-display-grid">
+                    <label><span>Tên chương trình</span><input name="Ten" placeholder="Khuyến mãi cuối tuần" maxlength="150" required></label>
+                    <label><span>Mã áp dụng</span><input name="Ma" placeholder="CUOITUAN" maxlength="50" required></label>
+                    <label><span>Phần trăm giảm</span><input name="PhanTramGiam" type="number" min="0" max="100" step="0.5" value="0"></label>
+                    <label><span>Bắt đầu</span><input name="NgayBatDau" type="date" value="@DateTime.UtcNow.ToString("yyyy-MM-dd")"></label>
+                    <label><span>Kết thúc</span><input name="NgayKetThuc" type="date" value="@DateTime.UtcNow.AddDays(7).ToString("yyyy-MM-dd")"></label>
+                </div>
+            </section>
+        </div>
+        <div class="product-modal-actions">
+            <button class="btn-secondary" data-close-promo-modal type="button">Hủy</button>
+            <button class="btn-primary" type="submit">Lưu khuyến mãi</button>
+        </div>
+    </form>
+</div>
+
+<aside id="invoicePanel" class="slide-panel translate-x-full">
+    <div class="card-head"><div><p class="eyebrow">Invoice</p><h3 id="invoicePanelTitle">Chi tiết hóa đơn</h3></div><button class="btn-icon" data-close-panel type="button">×</button></div>
+    <div id="invoicePanelBody">
+        <div class="empty-state compact"><span>◇</span><h3>Chọn một hóa đơn</h3><p>Bấm “Xem chi tiết” ở từng dòng đơn hàng để mở thông tin đầy đủ.</p></div>
+    </div>
+</aside>
+
+<aside id="customerPanel" class="slide-panel translate-x-full">
+    <div class="card-head"><div><p class="eyebrow">Customer</p><h3 id="customerPanelTitle">Chi tiết khách hàng</h3></div><button class="btn-icon" data-close-customer-panel type="button">×</button></div>
+    <div id="customerPanelBody">
+        <div class="empty-state compact"><span>K</span><h3>Chọn khách hàng</h3><p>Bấm “Chi tiết” ở từng dòng khách hàng để xem hồ sơ đầy đủ.</p></div>
+    </div>
+</aside>
+
+@foreach (var order in donHangs)
+{
+    <template id="invoice-template-@order.Id">
+        <div class="space-y-4">
+            <div class="alert-row info"><span>i</span><p>@OrderText(order.TrangThai), phương thức @HienThiThanhToan(order.PhuongThucThanhToan).</p></div>
+            <div class="invoice-line">
+                <strong>Khách hàng</strong>
+                <span>@(order.KhachHang?.HoTen ?? "Khách lẻ")</span>
+                <small>Nhân viên phụ trách: @(order.NhanVien?.HoTen ?? "Hệ thống Web") • @order.NgayDat.ToLocalTime().ToString("dd/MM/yyyy HH:mm", culture)</small>
+            </div>
+            <div class="invoice-line">
+                <strong>Kênh: @(order.KenhBanHang == "Web" ? "Website" : "Tại quầy") | Giao hàng & thanh toán</strong>
+                <span>@(string.IsNullOrWhiteSpace(order.DiaChiGiaoHang) ? "Tại quầy" : order.DiaChiGiaoHang)</span>
+                <small>@(string.IsNullOrWhiteSpace(order.GhiChuThanhToan) ? "Chưa có ghi chú thanh toán." : order.GhiChuThanhToan)</small>
+            </div>
+            <div class="space-y-3">
+                @foreach (var item in order.ChiTiet)
+                {
+                    <div class="invoice-line">
+                        <strong>@(item.SanPham?.Ten ?? "Sản phẩm không xác định")</strong>
+                        <small>@(item.SanPham?.Ma ?? "-") • @item.SoLuong x @Money(item.DonGia)</small>
+                        <span>@Money(item.SoLuong * item.DonGia - item.TienGiam)</span>
+                    </div>
+                }
+            </div>
+            @if (!string.IsNullOrWhiteSpace(order.MaKhuyenMaiDaDung) || order.TienGiamKhuyenMai > 0 || order.DiemThuongSuDung > 0 || order.TienGiamDiem > 0)
+            {
+                <div class="invoice-line">
+                    <strong>Ưu đãi đã dùng</strong>
+                    @if (!string.IsNullOrWhiteSpace(order.MaKhuyenMaiDaDung))
+                    {
+                        <small>Mã giảm giá: @order.MaKhuyenMaiDaDung - @Money(order.TienGiamKhuyenMai)</small>
+                    }
+                    @if (order.DiemThuongSuDung > 0 || order.TienGiamDiem > 0)
+                    {
+                        <small>Điểm tích lũy: @order.DiemThuongSuDung điểm - @Money(order.TienGiamDiem)</small>
+                    }
+                </div>
+            }
+            @if (order.DiemThuongCong > 0)
+            {
+                <div class="alert-row info"><span>+</span><p>Đơn này cộng @order.DiemThuongCong.ToString("N0", culture) điểm tích lũy.</p></div>
+            }
+            <div class="invoice-total-row"><span>Tổng tiền</span><strong class="text-2xl text-blue-600 dark:text-sky-300">@Money(order.TongTien)</strong></div>
+            @if (order.PhuongThucThanhToan == "ChuyenKhoan" && order.TrangThai == "DangXuLy")
+            {
+                <button class="btn-primary w-full opacity-50 cursor-not-allowed" type="button" disabled title="Vui lòng xác nhận thanh toán trước khi in hóa đơn" style="background-color: #94a3b8; border-color: #94a3b8;">Đang chờ xác thực SePAY</button>
+            }
+            else
+            {
+                <button class="btn-primary w-full" type="button" onclick="window.open('/NhanVien/InHoaDon?id=@order.Id', '_blank')">Xuất PDF / In hóa đơn</button>
+            }
+        </div>
+    </template>
+}
+
+@foreach (var customer in khachHangs)
+{
+    var customerOrders = donHangs.Where(d => d.KhachHangId == customer.Id).OrderByDescending(d => d.NgayDat).ToList();
+    <template id="customer-template-@customer.Id">
+        <div class="space-y-4">
+            <div class="customer-profile-head">
+                <span>@customer.HoTen.Split(' ', StringSplitOptions.RemoveEmptyEntries).LastOrDefault()?.FirstOrDefault()</span>
+                <div>
+                    <strong>@customer.HoTen</strong>
+                    <small>KH-@customer.Id.ToString("0000") • @(customer.KichHoat ? "Đang hoạt động" : "Ngừng")</small>
+                </div>
+            </div>
+            <div class="grid gap-3 md:grid-cols-2">
+                <div class="invoice-line"><strong>Số điện thoại</strong><span>@(customer.DienThoai ?? "-")</span></div>
+                <div class="invoice-line"><strong>Email</strong><span>@(customer.Email ?? "-")</span></div>
+                <div class="invoice-line"><strong>Điểm tích lũy</strong><span>@customer.DiemThuong.ToString("N0", culture) điểm</span></div>
+                <div class="invoice-line"><strong>Tổng chi tiêu</strong><span>@Money(customerOrders.Sum(d => d.TongTien))</span></div>
+            </div>
+            <div class="invoice-line">
+                <strong>Lịch sử mua hàng</strong>
+                <small>@customerOrders.Count đơn hàng trong hệ thống</small>
+            </div>
+            <div class="space-y-3">
+                @foreach (var order in customerOrders.Take(5))
+                {
+                    <div class="invoice-line">
+                        <strong>HD-@order.Id.ToString("0000")</strong>
+                        <small>@order.NgayDat.ToLocalTime().ToString("dd/MM/yyyy HH:mm", culture) • @OrderText(order.TrangThai)</small>
+                        <span>@Money(order.TongTien)</span>
+                    </div>
+                }
+                @if (!customerOrders.Any())
+                {
+                    <div class="empty-state compact"><span>◇</span><h3>Chưa có đơn hàng</h3><p>Khách hàng này chưa phát sinh đơn trong hệ thống.</p></div>
+                }
+            </div>
+        </div>
+    </template>
+}
+
+@section Scripts {
+    <script>
+        (() => {
+            const pages = document.querySelectorAll("[data-page]");
+            const links = document.querySelectorAll("[data-page-link]");
+            const modal = document.getElementById("productModal");
+            const panel = document.getElementById("invoicePanel");
+            const customerPanel = document.getElementById("customerPanel");
+            const productForm = document.getElementById("productForm");
+            const productModalTitle = document.getElementById("productModalTitle");
+            const productSubmitText = document.getElementById("productSubmitText");
+            const productRows = document.querySelectorAll("[data-product-row]");
+            const productSearch = document.querySelector("[data-product-search]");
+            const productCategory = document.querySelector("[data-product-category]");
+            const productStatus = document.querySelector("[data-product-status]");
+            const productMaxPrice = document.querySelector("[data-product-max-price]");
+            const createProductAction = "/QuanLy/CreateSanPham";
+            const updateProductAction = "/QuanLy/UpdateSanPham";
+
+            const setProductField = (name, value) => {
+                const field = productForm?.querySelector(`[name="${name}"]`);
+                if (!field) return;
+                if (field.type === "checkbox") {
+                    field.checked = value === true || value === "true";
+                    return;
+                }
+                field.value = value ?? "";
+            };
+
+            const openCreateProduct = () => {
+                productForm?.reset();
+                if (productForm) productForm.action = createProductAction;
+                if (productModalTitle) productModalTitle.textContent = "Thêm sản phẩm";
+                if (productSubmitText) productSubmitText.textContent = "Lưu sản phẩm";
+                setProductField("Id", "0");
+                setProductField("GiaVon", "0");
+                setProductField("GiaBan", "0");
+                setProductField("TonKho", "0");
+                setProductField("MucCanNhapLai", "10");
+                setProductField("DonVi", "cái");
+                setProductField("KichHoat", true);
+                modal?.classList.remove("hidden");
+            };
+
+            const openEditProduct = (button) => {
+                if (productForm) productForm.action = updateProductAction;
+                if (productModalTitle) productModalTitle.textContent = "Sửa sản phẩm";
+                if (productSubmitText) productSubmitText.textContent = "Cập nhật sản phẩm";
+                setProductField("Id", button.dataset.id);
+                setProductField("Ma", button.dataset.ma);
+                setProductField("Ten", button.dataset.ten);
+                setProductField("MoTa", button.dataset.mota);
+                setProductField("HinhAnh", button.dataset.hinhanh);
+                setProductField("DanhMucId", button.dataset.danhmucid);
+                setProductField("NhaCungCapId", button.dataset.nhacungcapid);
+                setProductField("GiaVon", button.dataset.giavon);
+                setProductField("GiaBan", button.dataset.giaban);
+                setProductField("DonVi", button.dataset.donvi);
+                setProductField("TonKho", button.dataset.tonkho);
+                setProductField("MucCanNhapLai", button.dataset.muccannhaplai);
+                setProductField("KichHoat", button.dataset.kichhoat);
+                modal?.classList.remove("hidden");
+            };
+
+            const showPage = (pageName) => {
+                pages.forEach(page => page.classList.toggle("hidden", page.dataset.page !== pageName));
+                links.forEach(link => link.classList.toggle("is-active", link.dataset.pageLink === pageName));
+                const target = document.getElementById(pageName);
+                if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
+            };
+
+            links.forEach(link => link.addEventListener("click", (event) => {
+                event.preventDefault();
+                history.replaceState(null, "", `#${link.dataset.pageLink}`);
+                showPage(link.dataset.pageLink);
+            }));
+
+            document.querySelectorAll("[data-open-modal]").forEach(btn => btn.addEventListener("click", openCreateProduct));
+            document.querySelectorAll("[data-edit-product]").forEach(btn => btn.addEventListener("click", () => openEditProduct(btn)));
+            document.querySelectorAll("[data-close-modal]").forEach(btn => btn.addEventListener("click", () => modal?.classList.add("hidden")));
+            modal?.addEventListener("click", event => { if (event.target === modal) modal.classList.add("hidden"); });
+
+            const categoryModal = document.getElementById("categoryModal");
+            document.querySelectorAll("[data-open-category-modal]").forEach(btn => btn.addEventListener("click", () => {
+                document.getElementById("categoryForm")?.reset();
+                categoryModal?.classList.remove("hidden");
+            }));
+            document.querySelectorAll("[data-close-category-modal]").forEach(btn => btn.addEventListener("click", () => categoryModal?.classList.add("hidden")));
+            categoryModal?.addEventListener("click", event => { if (event.target === categoryModal) categoryModal.classList.add("hidden"); });
+
+            const staffModal = document.getElementById("staffModal");
+            document.querySelectorAll("[data-open-staff-modal]").forEach(btn => btn.addEventListener("click", () => {
+                document.getElementById("staffForm")?.reset();
+                staffModal?.classList.remove("hidden");
+            }));
+            document.querySelectorAll("[data-close-staff-modal]").forEach(btn => btn.addEventListener("click", () => staffModal?.classList.add("hidden")));
+            staffModal?.addEventListener("click", event => { if (event.target === staffModal) staffModal.classList.add("hidden"); });
+
+            const supplierModal = document.getElementById("supplierModal");
+            document.querySelectorAll("[data-open-supplier-modal]").forEach(btn => btn.addEventListener("click", () => {
+                document.getElementById("supplierForm")?.reset();
+                supplierModal?.classList.remove("hidden");
+            }));
+            document.querySelectorAll("[data-close-supplier-modal]").forEach(btn => btn.addEventListener("click", () => supplierModal?.classList.add("hidden")));
+            supplierModal?.addEventListener("click", event => { if (event.target === supplierModal) supplierModal.classList.add("hidden"); });
+
+            const promoModal = document.getElementById("promoModal");
+            document.querySelectorAll("[data-open-promo-modal]").forEach(btn => btn.addEventListener("click", () => {
+                document.getElementById("promoForm")?.reset();
+                promoModal?.classList.remove("hidden");
+            }));
+            document.querySelectorAll("[data-close-promo-modal]").forEach(btn => btn.addEventListener("click", () => promoModal?.classList.add("hidden")));
+            promoModal?.addEventListener("click", event => { if (event.target === promoModal) promoModal.classList.add("hidden"); });
+
+            const filterProducts = () => {
+                const keyword = (productSearch?.value ?? "").trim().toLowerCase();
+                const category = productCategory?.value ?? "";
+                const status = productStatus?.value ?? "";
+                const maxPrice = Number(productMaxPrice?.value || 0);
+
+                productRows.forEach(row => {
+                    const text = `${row.dataset.name ?? ""} ${row.dataset.code ?? ""}`.toLowerCase();
+                    const price = Number(row.dataset.price || 0);
+                    const matchedKeyword = !keyword || text.includes(keyword);
+                    const matchedCategory = !category || row.dataset.category === category;
+                    const matchedStatus = !status || row.dataset.status === status;
+                    const matchedPrice = !maxPrice || price <= maxPrice;
+                    row.classList.toggle("hidden", !(matchedKeyword && matchedCategory && matchedStatus && matchedPrice));
+                });
+            };
+
+            [productSearch, productCategory, productStatus, productMaxPrice].forEach(input => {
+                input?.addEventListener("input", filterProducts);
+                input?.addEventListener("change", filterProducts);
+            });
+
+            const orderSearch = document.getElementById("orderSearch");
+            const orderChannel = document.getElementById("orderChannel");
+            const orderStatusFilter = document.getElementById("orderStatus");
+            const orderRows = document.querySelectorAll("[data-order-row]");
+
+            const filterOrders = () => {
+                const keyword = (orderSearch?.value ?? "").trim().toLowerCase();
+                const channel = orderChannel?.value ?? "";
+                const status = orderStatusFilter?.value ?? "";
+
+                orderRows.forEach(row => {
+                    const code = (row.dataset.code ?? "").toLowerCase();
+                    const matchedKeyword = !keyword || code.includes(keyword);
+                    const matchedChannel = !channel || row.dataset.channel === channel;
+                    const matchedStatus = !status || row.dataset.status === status;
+                    row.classList.toggle("hidden", !(matchedKeyword && matchedChannel && matchedStatus));
+                });
+            };
+
+            [orderSearch, orderChannel, orderStatusFilter].forEach(input => {
+                input?.addEventListener("input", filterOrders);
+                input?.addEventListener("change", filterOrders);
+            });
+
+            document.querySelectorAll("[data-open-panel]").forEach(btn => btn.addEventListener("click", () => {
+                const invoiceId = btn.dataset.invoiceId;
+                const template = invoiceId ? document.getElementById(`invoice-template-${invoiceId}`) : null;
+                const title = document.getElementById("invoicePanelTitle");
+                const body = document.getElementById("invoicePanelBody");
+
+                if (template && body) {
+                    if (title) title.textContent = `Chi tiết hóa đơn HD-${invoiceId.toString().padStart(4, "0")}`;
+                    body.innerHTML = "";
+                    body.appendChild(template.content.cloneNode(true));
+                }
+
+                panel?.classList.remove("translate-x-full");
+            }));
+            document.querySelectorAll("[data-close-panel]").forEach(btn => btn.addEventListener("click", () => panel?.classList.add("translate-x-full")));
+
+            document.querySelectorAll("[data-open-customer-panel]").forEach(btn => btn.addEventListener("click", () => {
+                const customerId = btn.dataset.customerId;
+                const template = customerId ? document.getElementById(`customer-template-${customerId}`) : null;
+                const title = document.getElementById("customerPanelTitle");
+                const body = document.getElementById("customerPanelBody");
+
+                if (template && body) {
+                    if (title) title.textContent = `Chi tiết khách hàng KH-${customerId.toString().padStart(4, "0")}`;
+                    body.innerHTML = "";
+                    body.appendChild(template.content.cloneNode(true));
+                }
+
+                customerPanel?.classList.remove("translate-x-full");
+            }));
+            document.querySelectorAll("[data-close-customer-panel]").forEach(btn => btn.addEventListener("click", () => customerPanel?.classList.add("translate-x-full")));
+
+            const syncPageFromHash = () => {
+                const hash = location.hash.replace("#", "");
+                if (hash && document.querySelector(`[data-page="${hash}"]`)) showPage(hash);
+            };
+
+            window.addEventListener("hashchange", syncPageFromHash);
+            syncPageFromHash();
+            setTimeout(syncPageFromHash, 0);
+        })();
+
+        setTimeout(() => {
+            const pageName = location.hash.replace("#", "");
+            if (!pageName) return;
+            document.querySelectorAll("[data-page]").forEach(page => page.classList.toggle("hidden", page.dataset.page !== pageName));
+            document.querySelectorAll("[data-page-link]").forEach(link => link.classList.toggle("is-active", link.dataset.pageLink === pageName));
+        }, 50);
+    </script>
+}

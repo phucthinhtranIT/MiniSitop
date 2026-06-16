@@ -1,0 +1,487 @@
+@model GioHang
+@{
+    ViewData["Title"] = "Giỏ hàng";
+    var chiTiet = Model.ChiTiet.OrderBy(c => c.Id).ToList();
+    var khuyenMai = ViewBag.KhuyenMai as KhuyenMai;
+    var diemThuong = ViewBag.DiemThuong is int diem ? diem : 0;
+    var diemThuongSuDung = ViewBag.DiemThuongSuDung is int diemDung ? diemDung : 0;
+    var giaTriMoiDiem = ViewBag.GiaTriMoiDiem is decimal giaTri ? giaTri : 1m;
+    var tongTien = chiTiet.Sum(c => c.SoLuong * (c.SanPham?.GiaBan ?? 0));
+    var tienGiam = khuyenMai == null ? 0m : Math.Round(tongTien * khuyenMai.PhanTramGiam / 100m, 0);
+    var tongSauGiam = tongTien - tienGiam;
+    var tienGiamDiem = diemThuongSuDung * giaTriMoiDiem;
+    var tongThanhToan = Math.Max(0m, tongSauGiam - tienGiamDiem);
+    var diemToiDa = Math.Min(diemThuong, (int)Math.Floor(tongSauGiam / giaTriMoiDiem));
+    var donHangSePay = ViewBag.DonHangSePay as DonHang;
+    var sePayQrUrl = ViewBag.SePayQrUrl as string ?? "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==";
+    var noiDungSePay = ViewBag.SePayNoiDung as string ?? "QR sẽ hiện sau khi tạo đơn";
+    var sePayHetHanUtc = ViewBag.SePayHetHanUtc as DateTime?;
+    const string anhDuPhong = "https://images.unsplash.com/photo-1601598851547-4302969d0614?auto=format&fit=crop&w=600&q=80";
+}
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8 pb-16" id="cart-wrapper">
+    <div class="mb-8 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+            <p class="text-sm font-semibold text-brand-600">MiniStop</p>
+            <h1 class="text-3xl font-black text-slate-900">Giỏ hàng của bạn</h1>
+        </div>
+        <a href="/TimKiem" class="inline-flex items-center justify-center rounded-full border border-slate-200 bg-white px-5 py-2.5 text-sm font-bold text-slate-700 hover:border-brand-300 hover:text-brand-600 text-decoration-none shadow-sm transition-all">
+            Tiếp tục mua hàng
+        </a>
+    </div>
+
+    @if (TempData["ThongBaoGioHang"] is string thongBao)
+    {
+        <div class="mb-6 rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm font-semibold text-sky-700 shadow-sm flex items-center gap-2">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            @thongBao
+        </div>
+    }
+
+    @if (donHangSePay != null && !string.IsNullOrWhiteSpace(sePayQrUrl))
+    {
+        <section class="mb-8 rounded-3xl border border-sky-200 bg-white p-6 shadow-xl shadow-sky-950/10" id="sepay-panel" data-expire-utc="@sePayHetHanUtc?.ToString("yyyy-MM-ddTHH:mm:ssZ")">
+            <div class="grid gap-6 lg:grid-cols-[220px_1fr]">
+                <div class="rounded-2xl border border-slate-100 bg-slate-50 p-4 text-center">
+                    <img src="@sePayQrUrl" alt="QR SePAY @noiDungSePay" class="mx-auto h-48 w-48 rounded-xl bg-white object-contain shadow-sm" />
+                    <div class="mt-3 text-xs font-bold uppercase text-slate-400">Quét mã SePAY</div>
+                </div>
+                <div class="flex flex-col justify-center">
+                    <div class="inline-flex w-fit rounded-full bg-sky-50 px-3 py-1 text-xs font-bold text-sky-700">Đơn hàng #@donHangSePay.Id</div>
+                    <h2 class="mt-3 text-2xl font-black text-slate-900">Hoàn tất chuyển khoản trong 5 phút</h2>
+                    <p class="mt-2 text-sm font-medium text-slate-500">Mở app ngân hàng, quét QR và giữ nguyên nội dung chuyển khoản bên dưới để hệ thống tự xác nhận qua SePAY.</p>
+
+                    <div class="mt-5 grid gap-3 sm:grid-cols-2">
+                        <div class="rounded-2xl border border-slate-100 bg-slate-50 p-4">
+                            <div class="text-xs font-bold uppercase text-slate-400">Số tiền</div>
+                            <div class="mt-1 text-2xl font-black text-sky-600">@donHangSePay.TongTien.ToString("N0")đ</div>
+                        </div>
+                        <div class="rounded-2xl border border-slate-100 bg-slate-50 p-4">
+                            <div class="text-xs font-bold uppercase text-slate-400">Nội dung chuyển khoản</div>
+                            <div class="mt-1 break-all font-mono text-lg font-black text-slate-900 select-all">@noiDungSePay</div>
+                        </div>
+                    </div>
+
+                    <div class="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center">
+                        <form id="sepay-check-form" method="post" action="/GioHang/KiemTraThanhToan" class="m-0">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="donHangId" value="@donHangSePay.Id" />
+                            <button type="submit" class="rounded-2xl bg-brand-600 px-6 py-3 font-black text-white transition hover:bg-brand-700">Kiểm tra thanh toán</button>
+                        </form>
+                        <div class="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-700">
+                            Còn <span id="sepay-countdown">05:00</span> trước khi đơn tự hủy
+                        </div>
+                    </div>
+                    <div id="sepay-status" class="mt-3 text-sm font-bold text-slate-500">Nếu đã chuyển khoản, bấm kiểm tra hoặc chờ SePAY gửi webhook tự động.</div>
+                </div>
+            </div>
+        </section>
+    }
+
+    @if (!chiTiet.Any())
+    {
+        <div class="rounded-3xl border border-slate-100 bg-white p-12 text-center shadow-sm max-w-2xl mx-auto">
+            <div class="mx-auto mb-6 flex h-24 w-24 items-center justify-center rounded-full bg-slate-50">
+                <svg class="h-12 w-12 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path></svg>
+            </div>
+            <h2 class="text-2xl font-black text-slate-900">Giỏ hàng đang trống</h2>
+            <p class="mt-3 text-slate-500 font-medium">Bạn có thể thêm sản phẩm từ trang chủ hoặc tìm kiếm sản phẩm yêu thích.</p>
+            <a href="/" class="mt-8 inline-flex rounded-xl bg-brand-600 px-8 py-3.5 font-bold text-white hover:bg-brand-700 transition-all hover:-translate-y-0.5 shadow-md hover:shadow-xl text-decoration-none">
+                Bắt đầu mua sắm
+            </a>
+        </div>
+    }
+    else
+    {
+        <div class="grid gap-8 lg:grid-cols-12">
+            <!-- Left Column: Cart Items -->
+            <section class="lg:col-span-8 space-y-5">
+                @foreach (var item in chiTiet)
+                {
+                    var sanPham = item.SanPham;
+                    var hinhAnh = string.IsNullOrWhiteSpace(sanPham?.HinhAnh) ? anhDuPhong : sanPham.HinhAnh;
+                    var thanhTien = item.SoLuong * (sanPham?.GiaBan ?? 0);
+
+                    <article class="flex flex-col sm:flex-row gap-5 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm transition-all hover:shadow-md md:p-5 relative group overflow-hidden">
+                        <div class="absolute inset-y-0 left-0 w-1 bg-brand-500 opacity-0 transition-opacity group-hover:opacity-100"></div>
+                        <img src="@hinhAnh" alt="@sanPham?.Ten" class="h-24 w-24 sm:h-28 sm:w-28 rounded-xl object-cover border border-slate-50 shrink-0" />
+                        <div class="flex-1 flex flex-col justify-between min-w-0">
+                            <div>
+                                <div class="text-xs font-medium text-slate-400">@sanPham?.Ma</div>
+                                <h2 class="mt-1 text-base sm:text-lg font-bold text-slate-900 line-clamp-2 leading-snug">@sanPham?.Ten</h2>
+                                <div class="mt-1.5 text-sm font-semibold text-brand-600 bg-brand-50 inline-block px-2 py-0.5 rounded-md">@((sanPham?.GiaBan ?? 0).ToString("N0"))đ <span class="text-xs font-medium text-brand-500">/ @(sanPham?.DonVi ?? "sp")</span></div>
+                            </div>
+                            <div class="mt-4 flex flex-wrap items-center justify-between gap-4">
+                                <div class="flex items-center gap-3">
+                                    <div class="flex items-center rounded-lg border border-slate-200 bg-slate-50 p-1 shadow-sm">
+                                        <form method="post" action="/GioHang/CapNhat" class="m-0">
+                                            @Html.AntiForgeryToken()
+                                            <input type="hidden" name="chiTietId" value="@item.Id" />
+                                            <input type="hidden" name="soLuong" value="@(item.SoLuong - 1)" />
+                                            <button type="submit" class="flex h-8 w-8 items-center justify-center rounded-md bg-white text-slate-600 shadow-sm transition hover:text-brand-600 hover:bg-brand-50 border-0 font-bold">-</button>
+                                        </form>
+                                        <input value="@item.SoLuong" readonly class="w-12 bg-transparent text-center text-sm font-bold text-slate-900 border-0 outline-none" />
+                                        <form method="post" action="/GioHang/CapNhat" class="m-0">
+                                            @Html.AntiForgeryToken()
+                                            <input type="hidden" name="chiTietId" value="@item.Id" />
+                                            <input type="hidden" name="soLuong" value="@(item.SoLuong + 1)" />
+                                            <button type="submit" class="flex h-8 w-8 items-center justify-center rounded-md bg-white text-slate-600 shadow-sm transition hover:text-brand-600 hover:bg-brand-50 border-0 font-bold">+</button>
+                                        </form>
+                                    </div>
+                                    <span class="text-xs text-slate-400">Kho: <strong class="text-slate-600">@(sanPham?.TonKho ?? 0)</strong></span>
+                                </div>
+                                <div class="flex items-center gap-4">
+                                    <div class="text-lg font-black text-slate-900">@thanhTien.ToString("N0")đ</div>
+                                    <form method="post" action="/GioHang/Xoa" class="m-0">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="chiTietId" value="@item.Id" />
+                                        <button type="submit" class="flex items-center justify-center h-9 w-9 rounded-full bg-red-50 text-red-500 transition-all hover:bg-red-500 hover:text-white border-0" title="Xóa">
+                                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </article>
+                }
+                
+                <form method="post" action="/GioHang/XoaTatCa" class="mt-6 flex justify-end">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="flex items-center gap-2 rounded-xl border-2 border-slate-100 bg-white px-5 py-2.5 text-sm font-bold text-slate-500 transition-colors hover:border-red-100 hover:bg-red-50 hover:text-red-600 shadow-sm">
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                        Xóa toàn bộ giỏ hàng
+                    </button>
+                </form>
+            </section>
+
+            <!-- Right Column: Order Summary & Checkout -->
+            <aside class="lg:col-span-4 space-y-6">
+                <!-- Summary Card -->
+                <div class="rounded-2xl border border-slate-100 bg-white p-6 shadow-lg shadow-slate-200/50 relative overflow-hidden">
+                    <div class="absolute top-0 right-0 w-32 h-32 bg-brand-50 rounded-bl-full -z-10 opacity-50"></div>
+                    <h2 class="text-xl font-black text-slate-900 flex items-center gap-2">
+                        <svg class="w-5 h-5 text-brand-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                        Tóm tắt đơn hàng
+                    </h2>
+                    
+                    <div class="mt-6 space-y-4 border-b border-slate-100 pb-5 text-sm">
+                        <div class="flex justify-between items-center text-slate-500">
+                            <span>Tạm tính</span>
+                            <span class="font-bold text-slate-900 text-base">@tongTien.ToString("N0")đ</span>
+                        </div>
+                        <div class="flex justify-between items-center text-slate-500">
+                            <span>Khuyến mãi</span>
+                            <span class="font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">-@tienGiam.ToString("N0")đ</span>
+                        </div>
+                        <div class="flex justify-between items-center text-slate-500">
+                            <span>Điểm tích lũy</span>
+                            <span class="font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">-@tienGiamDiem.ToString("N0")đ</span>
+                        </div>
+                        <div class="flex justify-between items-end pt-4 mt-4 border-t border-slate-100 border-dashed">
+                            <span class="font-bold text-slate-900 text-base mb-1">Tổng cộng</span>
+                            <span class="text-3xl font-black text-brand-600 tracking-tight">@tongThanhToan.ToString("N0")đ</span>
+                        </div>
+                    </div>
+
+                    <!-- Discount Code Section -->
+                    <div class="mt-6">
+                        <div class="text-sm font-bold text-slate-900 mb-2 flex justify-between items-center">
+                            <span>Mã giảm giá</span>
+                            @if (khuyenMai == null) {
+                                <span class="text-[10px] font-semibold text-brand-600 bg-brand-50 px-2 py-1 rounded-full">Mã: CUOITUAN, MUA2TANG1</span>
+                            }
+                        </div>
+                        @if (khuyenMai != null)
+                        {
+                            <div class="flex items-center justify-between rounded-xl border-2 border-emerald-500 bg-emerald-50 px-4 py-3 relative overflow-hidden">
+                                <div class="absolute -right-4 -top-4 text-emerald-100 opacity-50">
+                                    <svg class="w-16 h-16" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>
+                                </div>
+                                <div class="relative z-10">
+                                    <div class="text-[11px] font-semibold text-emerald-600 uppercase tracking-wider">Đang áp dụng</div>
+                                    <div class="font-black text-emerald-800 text-lg mt-0.5">@khuyenMai.Ma</div>
+                                    <div class="text-sm font-medium text-emerald-700">-@khuyenMai.PhanTramGiam.ToString("N0")% giảm</div>
+                                </div>
+                                <form method="post" action="/GioHang/BoKhuyenMai" class="m-0 relative z-10">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" class="p-2 text-emerald-600 hover:text-emerald-800 hover:bg-emerald-100 rounded-full transition" aria-label="Bỏ mã">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                                    </button>
+                                </form>
+                            </div>
+                        }
+                        else
+                        {
+                            <form method="post" action="/GioHang/ApDungKhuyenMai" class="flex gap-2">
+                                @Html.AntiForgeryToken()
+                                <input name="maKhuyenMai" maxlength="50" placeholder="VD: CUOITUAN" class="min-w-0 flex-1 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold uppercase outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 transition-all bg-slate-50 focus:bg-white" />
+                                <button type="submit" class="rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-bold text-white hover:bg-brand-600 transition-colors shadow-sm hover:shadow-md">
+                                    Áp dụng
+                                </button>
+                            </form>
+                        }
+                    </div>
+
+                    <!-- Points Section -->
+                    <div class="mt-5">
+                        <div class="flex items-center justify-between mb-2">
+                            <div class="text-sm font-bold text-slate-900">Dùng Điểm</div>
+                            <div class="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-700">
+                                <svg class="w-3.5 h-3.5 text-amber-500" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path></svg>
+                                @diemThuong.ToString("N0")
+                            </div>
+                        </div>
+                        
+                        @if (diemThuongSuDung > 0)
+                        {
+                            <div class="flex items-center justify-between rounded-xl border-2 border-amber-400 bg-amber-50 px-4 py-3">
+                                <div>
+                                    <div class="font-bold text-amber-800">-@diemThuongSuDung.ToString("N0") điểm</div>
+                                    <div class="text-xs font-medium text-amber-600 mt-0.5">Tiết kiệm @tienGiamDiem.ToString("N0")đ</div>
+                                </div>
+                                <form method="post" action="/GioHang/BoDiemThuong" class="m-0">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" class="rounded-lg bg-white px-3 py-1.5 text-xs font-bold text-amber-700 shadow-sm border border-amber-200 hover:bg-amber-100 transition" aria-label="Bỏ điểm">
+                                        Hủy
+                                    </button>
+                                </form>
+                            </div>
+                        }
+                        else if (diemToiDa > 0)
+                        {
+                            <form method="post" action="/GioHang/ApDungDiemThuong" class="flex gap-2">
+                                @Html.AntiForgeryToken()
+                                <input name="diemSuDung" type="number" min="1" max="@diemToiDa" value="@diemToiDa" class="min-w-0 flex-1 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 transition-all bg-slate-50 focus:bg-white" />
+                                <button type="submit" class="rounded-xl bg-amber-500 px-5 py-2.5 text-sm font-bold text-white hover:bg-amber-600 transition-colors shadow-sm hover:shadow-md">
+                                    Dùng
+                                </button>
+                            </form>
+                            <div class="mt-2 text-[11px] font-medium text-slate-500">Dùng tối đa @diemToiDa.ToString("N0") điểm cho đơn hàng này.</div>
+                        }
+                        else
+                        {
+                            <div class="rounded-xl bg-slate-50 px-4 py-3 text-xs font-medium text-slate-500 border border-slate-100 flex items-center gap-2">
+                                <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                Điểm khả dụng chưa đủ.
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <!-- Checkout Form -->
+                <form method="post" action="/GioHang/XacNhan" class="rounded-2xl border border-slate-100 bg-white p-6 shadow-lg shadow-slate-200/50 space-y-6">
+                    @Html.AntiForgeryToken()
+                    
+                    <div>
+                        <label class="flex items-center gap-2 text-sm font-bold text-slate-900 mb-2" for="diaChiGiaoHang">
+                            <svg class="w-4 h-4 text-brand-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                            Giao hàng đến
+                        </label>
+                        <textarea id="diaChiGiaoHang" name="diaChiGiaoHang" rows="2" maxlength="300" required placeholder="Số nhà, tên đường, phường/xã..." class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-900 outline-none focus:bg-white focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 transition-all resize-none shadow-inner"></textarea>
+                    </div>
+
+                    <div>
+                        <div class="text-sm font-bold text-slate-900 mb-3 flex items-center gap-2">
+                            <svg class="w-4 h-4 text-brand-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path></svg>
+                            Phương thức thanh toán
+                        </div>
+                        
+                        <style>
+                            .payment-radio:checked + label {
+                                border-color: #0ea5e9; /* brand-500 */
+                                background-color: rgba(14, 165, 233, 0.1);
+                            }
+                            .payment-radio:checked + label .radio-icon {
+                                border-color: #0ea5e9;
+                                background-color: #0ea5e9;
+                            }
+                            .payment-radio:checked + label .radio-icon svg {
+                                opacity: 1;
+                            }
+                            .payment-radio:checked + label .payment-details {
+                                display: block;
+                            }
+                        </style>
+                        <div class="grid gap-3">
+                            <div class="relative">
+                                <input type="radio" name="phuongThucThanhToan" id="pt_TienMat" value="TienMat" class="payment-radio sr-only" checked>
+                                <label for="pt_TienMat" class="flex cursor-pointer rounded-xl border-2 border-slate-100 bg-white p-4 shadow-sm hover:border-sky-200 hover:bg-sky-50 transition-all">
+                                    <div class="flex w-full items-start gap-3">
+                                        <div class="radio-icon mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 border-slate-300 transition-colors">
+                                            <svg class="h-3 w-3 text-white opacity-0 transition-opacity" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg>
+                                        </div>
+                                        <div>
+                                            <div class="font-bold text-slate-900">Tiền mặt (COD)</div>
+                                            <div class="text-[11px] text-slate-500 mt-1 leading-relaxed">Thanh toán bằng tiền mặt cho shipper khi nhận được hàng.</div>
+                                        </div>
+                                    </div>
+                                </label>
+                            </div>
+
+                            <div class="relative">
+                                <input type="radio" name="phuongThucThanhToan" id="pt_ChuyenKhoan" value="ChuyenKhoan" class="payment-radio sr-only">
+                                <label for="pt_ChuyenKhoan" class="flex cursor-pointer rounded-xl border-2 border-slate-100 bg-white p-4 shadow-sm hover:border-sky-200 hover:bg-sky-50 transition-all">
+                                    <div class="flex w-full items-start gap-3">
+                                        <div class="radio-icon mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 border-slate-300 transition-colors">
+                                            <svg class="h-3 w-3 text-white opacity-0 transition-opacity" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg>
+                                        </div>
+                                        <div class="w-full">
+                                            <div class="flex items-center justify-between">
+                                                <div class="font-bold text-slate-900">Chuyển khoản SePAY</div>
+                                                <span class="rounded bg-sky-100 px-1.5 py-0.5 text-[10px] font-bold text-sky-700">Tự động</span>
+                                            </div>
+                                            <div class="text-[11px] text-slate-500 mt-1 leading-relaxed">Mở app ngân hàng quét mã QR. Đơn tự xác nhận sau vài giây.</div>
+                                            
+                                            <div class="payment-details hidden mt-4 rounded-xl bg-white border border-sky-100 p-4 shadow-inner">
+                                                <div class="flex flex-col sm:flex-row gap-4 items-center sm:items-start">
+                                                    <div class="bg-white p-1.5 rounded-xl border border-slate-100 shadow-sm shrink-0">
+                                                        <img src="@sePayQrUrl" alt="QR SePAY" class="h-28 w-28 rounded-lg object-cover">
+                                                    </div>
+                                                    <div class="text-center sm:text-left min-w-0 flex-1">
+                                                        <div class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Số tiền thanh toán</div>
+                                                        <div class="text-xl font-black text-sky-600 mb-2">@tongThanhToan.ToString("N0")đ</div>
+                                                        <div class="text-[11px] bg-sky-50 text-sky-700 px-2.5 py-1.5 rounded-lg border border-sky-100 inline-block text-left w-full break-all">
+                                                            Nội dung CK: <strong class="text-sky-900 font-mono text-xs select-all">@noiDungSePay</strong>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="relative overflow-hidden w-full rounded-2xl bg-brand-600 px-6 py-4 font-black text-white text-lg tracking-wide transition-all hover:bg-brand-700 hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0 focus:ring-4 focus:ring-brand-500/30 group">
+                        <span class="relative z-10 flex items-center justify-center gap-2">
+                            ĐẶT HÀNG NGAY
+                            <svg class="w-5 h-5 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+                        </span>
+                        <div class="absolute inset-0 bg-white/20 translate-y-full transition-transform group-hover:translate-y-0 duration-300 rounded-2xl"></div>
+                    </button>
+                    
+                    <div class="text-center">
+                        <span class="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-400 bg-slate-50 px-3 py-1.5 rounded-full border border-slate-100">
+                            <svg class="w-3.5 h-3.5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8V7a4 4 0 00-8 0v4h8z"></path></svg>
+                            Thanh toán an toàn & bảo mật
+                        </span>
+                    </div>
+                </form>
+            </aside>
+        </div>
+    }
+</div>
+
+@section Scripts {
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const cartWrapper = document.getElementById('cart-wrapper');
+            if (!cartWrapper) return;
+
+            const sePayPanel = document.getElementById('sepay-panel');
+            const sePayForm = document.getElementById('sepay-check-form');
+            const sePayStatus = document.getElementById('sepay-status');
+            const sePayCountdown = document.getElementById('sepay-countdown');
+
+            if (sePayPanel && sePayCountdown) {
+                const expireAt = new Date(sePayPanel.dataset.expireUtc);
+                const updateCountdown = () => {
+                    const seconds = Math.max(0, Math.ceil((expireAt.getTime() - Date.now()) / 1000));
+                    const minutesText = String(Math.floor(seconds / 60)).padStart(2, '0');
+                    const secondsText = String(seconds % 60).padStart(2, '0');
+                    sePayCountdown.textContent = `${minutesText}:${secondsText}`;
+                    if (seconds <= 0) {
+                        window.location.reload();
+                    }
+                };
+                updateCountdown();
+                window.setInterval(updateCountdown, 1000);
+            }
+
+            if (sePayForm) {
+                sePayForm.addEventListener('submit', async function (e) {
+                    e.preventDefault();
+                    const button = sePayForm.querySelector('button[type="submit"]');
+                    const originalText = button ? button.textContent : '';
+                    if (button) {
+                        button.disabled = true;
+                        button.textContent = 'Đang kiểm tra...';
+                    }
+                    if (sePayStatus) {
+                        sePayStatus.textContent = 'Đang kiểm tra giao dịch từ SePAY...';
+                    }
+
+                    try {
+                        const response = await fetch(sePayForm.action, {
+                            method: 'POST',
+                            body: new FormData(sePayForm),
+                            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                        });
+                        const result = await response.json();
+                        if (sePayStatus) {
+                            sePayStatus.textContent = result.thongBao || 'Đã kiểm tra thanh toán.';
+                            sePayStatus.className = result.trangThai === 'DaThanhToan'
+                                ? 'mt-3 text-sm font-bold text-emerald-600'
+                                : result.trangThai === 'DaHuy'
+                                    ? 'mt-3 text-sm font-bold text-red-600'
+                                    : 'mt-3 text-sm font-bold text-slate-500';
+                        }
+                        if (result.trangThai === 'DaThanhToan' || result.trangThai === 'DaHuy') {
+                            window.setTimeout(() => window.location.reload(), 1200);
+                        }
+                    } catch (error) {
+                        if (sePayStatus) {
+                            sePayStatus.textContent = 'Không kiểm tra được thanh toán, vui lòng thử lại.';
+                            sePayStatus.className = 'mt-3 text-sm font-bold text-red-600';
+                        }
+                    } finally {
+                        if (button) {
+                            button.disabled = false;
+                            button.textContent = originalText;
+                        }
+                    }
+                });
+            }
+
+            cartWrapper.addEventListener('submit', async function (e) {
+                const form = e.target.closest('form');
+                if (!form || form.action.includes('XacNhan') || form.action.includes('ThanhToan') || form.action.includes('KiemTraThanhToan')) return;
+
+                e.preventDefault();
+
+                // Add simple loading state
+                const originalOpacity = cartWrapper.style.opacity;
+                cartWrapper.style.opacity = '0.6';
+                cartWrapper.style.pointerEvents = 'none';
+
+                try {
+                    const response = await fetch(form.action, {
+                        method: form.method || 'POST',
+                        body: new FormData(form),
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    });
+
+                    if (response.ok) {
+                        const html = await response.text();
+                        const parser = new DOMParser();
+                        const doc = parser.parseFromString(html, 'text/html');
+                        
+                        const newWrapper = doc.getElementById('cart-wrapper');
+                        if (newWrapper) {
+                            cartWrapper.innerHTML = newWrapper.innerHTML;
+                        }
+                    }
+                } catch (error) {
+                    console.error('Lỗi khi cập nhật giỏ hàng:', error);
+                    alert('Có lỗi xảy ra, vui lòng thử lại.');
+                } finally {
+                    cartWrapper.style.opacity = originalOpacity;
+                    cartWrapper.style.pointerEvents = 'auto';
+                }
+            });
+        });
+    </script>
+}

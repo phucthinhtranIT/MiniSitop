@@ -219,6 +219,43 @@
         <article class="manager-card overflow-hidden"><div class="table-wrap"><table class="manager-table"><thead><tr><th>Mã NV</th><th>Họ tên</th><th>SĐT</th><th>Email</th><th>Vai trò</th><th>Lương</th><th>Trạng thái</th><th>Hành động</th></tr></thead><tbody>@foreach (var staff in nhanViens){<tr><td>NV-@staff.Id.ToString("0000")</td><td>@staff.HoTen</td><td>@(staff.DienThoai ?? "-")</td><td>@(staff.Email ?? "-")</td><td>@staff.ChucVu</td><td>@Money(staff.Luong)</td><td><span class="badge @(staff.KichHoat ? "success" : "danger")">@(staff.KichHoat ? "Đang hoạt động" : "Ngừng")</span></td><td><button class="btn-secondary" type="button">Sửa</button></td></tr>}</tbody></table></div>@if (!nhanViens.Any()){<div class="empty-state compact"><span>◎</span><h3>Chưa có nhân viên</h3><p>Thêm nhân viên để quản lý hồ sơ và phân quyền.</p></div>}</article>
     </section>
 
+    <section id="suppliers" class="manager-page hidden space-y-6" data-page="suppliers">
+        <div class="page-title-row"><div><p class="eyebrow">Suppliers</p><h2>Quản lý nhà cung cấp</h2><small>Dữ liệu lấy từ bảng NhaCungCaps và liên kết với SanPhams.</small></div><button class="btn-secondary" type="button">Xuất danh sách</button></div>
+        <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <article class="stat-card"><p>Tổng nhà cung cấp</p><strong>@nhaCungCaps.Count</strong><small>Đối tác đang lưu trong hệ thống</small></article>
+            <article class="stat-card"><p>Sản phẩm có NCC</p><strong>@sanPhams.Count(p => p.NhaCungCapId > 0)</strong><small>Từ bảng SanPhams</small></article>
+            <article class="stat-card"><p>NCC có email</p><strong>@nhaCungCaps.Count(n => !string.IsNullOrWhiteSpace(n.Email))</strong><small>Dễ liên hệ đặt hàng</small></article>
+            <article class="stat-card"><p>NCC có điện thoại</p><strong>@nhaCungCaps.Count(n => !string.IsNullOrWhiteSpace(n.DienThoai))</strong><small>Dùng khi cần nhập hàng nhanh</small></article>
+        </div>
+        <article class="manager-card overflow-hidden">
+            <div class="table-wrap">
+                <table class="manager-table">
+                    <thead><tr><th>Mã NCC</th><th>Nhà cung cấp</th><th>Người liên hệ</th><th>SĐT</th><th>Email</th><th>Địa chỉ</th><th>Số sản phẩm</th><th>Hành động</th></tr></thead>
+                    <tbody>
+                        @foreach (var supplier in nhaCungCaps)
+                        {
+                            var productCount = sanPhams.Count(p => p.NhaCungCapId == supplier.Id);
+                            <tr>
+                                <td>NCC-@supplier.Id.ToString("0000")</td>
+                                <td>@supplier.Ten</td>
+                                <td>@(supplier.TenLienHe ?? "-")</td>
+                                <td>@(supplier.DienThoai ?? "-")</td>
+                                <td>@(supplier.Email ?? "-")</td>
+                                <td>@(supplier.DiaChi ?? "-")</td>
+                                <td><span class="badge info">@productCount sản phẩm</span></td>
+                                <td><button class="btn-secondary" type="button">Chi tiết</button></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            @if (!nhaCungCaps.Any())
+            {
+                <div class="empty-state compact"><span>C</span><h3>Chưa có nhà cung cấp</h3><p>Khi thêm nhà cung cấp, quản lý có thể theo dõi nguồn hàng tại đây.</p></div>
+            }
+        </article>
+    </section>
+
     <section id="promotions" class="manager-page hidden space-y-6" data-page="promotions">
         <div class="page-title-row"><div><p class="eyebrow">Promotions</p><h2>Quản lý khuyến mãi</h2><small>Dữ liệu lấy từ bảng KhuyenMais.</small></div><button class="btn-primary" type="button">Tạo khuyến mãi</button></div>
         <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4"><article class="stat-card"><p>Đang chạy</p><strong>@khuyenMaiDangChay</strong><small>KichHoat = true</small></article><article class="stat-card"><p>Sắp hết hạn</p><strong>@khuyenMaiSapHetHan</strong><small>Trong 7 ngày</small></article><article class="stat-card"><p>Đã kết thúc</p><strong>@khuyenMaiDaKetThuc</strong><small>Qua ngày kết thúc</small></article><article class="stat-card"><p>Tổng chương trình</p><strong>@khuyenMais.Count</strong><small>Tất cả khuyến mãi</small></article></div>

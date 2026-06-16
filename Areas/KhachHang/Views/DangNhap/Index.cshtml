@@ -1,6 +1,7 @@
 ﻿@{
     Layout = "_Layout";
     ViewData["HideCategories"] = true;
+    ViewData["HideGuestHeader"] = true;
     ViewData["Title"] = "Đăng nhập";
     var taiKhoan = Context.Request.HasFormContentType ? Context.Request.Form["taiKhoan"].ToString() : string.Empty;
 }
@@ -9,19 +10,19 @@
     <div class="mx-auto grid max-w-6xl gap-8 rounded-[32px] border border-sky-100 bg-white/95 p-6 shadow-2xl shadow-sky-100 lg:grid-cols-[1.05fr_0.95fr] lg:p-10">
         <div class="rounded-[28px] bg-gradient-to-br from-slate-900 via-sky-900 to-blue-700 p-8 text-white shadow-xl lg:p-10">
             <p class="text-sm font-semibold uppercase tracking-[0.35em] text-sky-100">MiniStop</p>
-            <h1 class="mt-4 text-3xl font-black md:text-4xl">Đăng nhập để theo dõi ưu đãi và tích điểm.</h1>
-            <p class="mt-4 max-w-md text-sky-100/90">Quản lý đơn hàng nhanh, nhận khuyến mãi theo ngày và trải nghiệm mua sắm thuận tiện hơn.</p>
+            <h1 class="mt-4 text-3xl font-black md:text-4xl">Đăng nhập để tiếp tục đúng vai trò.</h1>
+            <p class="mt-4 max-w-md text-sky-100/90">Khách hàng mua sắm và tích điểm, nhân viên bán hàng tại quầy, quản lý theo dõi vận hành cửa hàng.</p>
             <ul class="mt-6 space-y-3 text-sm text-sky-100/90">
-                <li>Xem lịch sử mua hàng</li>
-                <li>Nhận ưu đãi dành riêng cho thành viên</li>
-                <li>Tích điểm và đổi quà dễ dàng</li>
+                <li>Khách hàng: giỏ hàng, lịch sử mua hàng, điểm tích lũy</li>
+                <li>Nhân viên: tạo hóa đơn và theo dõi tồn kho tại quầy</li>
+                <li>Quản lý: xem dashboard, sản phẩm, đơn hàng và nhân sự</li>
             </ul>
         </div>
 
         <div class="rounded-[28px] border border-sky-100 bg-sky-50/70 p-8 shadow-inner lg:p-10">
             <p class="text-sm font-semibold uppercase tracking-[0.35em] text-blue-700">Trang đăng nhập</p>
             <h2 class="mt-3 text-2xl font-bold text-slate-900">Chào mừng bạn quay lại</h2>
-            <p class="mt-2 text-slate-600">Vui lòng nhập thông tin để tiếp tục mua sắm.</p>
+            <p class="mt-2 text-slate-600">Khách hàng, nhân viên và quản lý đều đăng nhập tại đây bằng email hoặc số điện thoại.</p>
 
             @if (TempData["ThongBaoThanhCong"] is string thongBao)
             {

@@ -3,19 +3,28 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using WebQLministop.Data;
 using WebQLministop.Models;
+using KhachHangModel = WebQLministop.Models.KhachHang;
 
-namespace WebQLministop.Controllers
+namespace WebQLministop.Areas.KhachHang.Controllers
 {
+    [Area("KhachHang")]
     public class TaiKhoanController : Controller
     {
         private readonly ApplicationDbContext _context;
         private readonly IWebHostEnvironment _environment;
-        private readonly PasswordHasher<KhachHang> _passwordHasher = new();
+        private readonly UserManager<ApplicationUser> _userManager;
+        private readonly SignInManager<ApplicationUser> _signInManager;
 
-        public TaiKhoanController(ApplicationDbContext context, IWebHostEnvironment environment)
+        public TaiKhoanController(
+            ApplicationDbContext context,
+            IWebHostEnvironment environment,
+            UserManager<ApplicationUser> userManager,
+            SignInManager<ApplicationUser> signInManager)
         {
             _context = context;
             _environment = environment;
+            _userManager = userManager;
+            _signInManager = signInManager;
         }
 
         [HttpGet]
@@ -24,7 +33,7 @@ namespace WebQLministop.Controllers
             var khachHang = await LayKhachHangDangNhap();
             if (khachHang == null)
             {
-                return RedirectToAction("Index", "DangNhap");
+                return RedirectToAction("Index", "DangNhap", new { area = "KhachHang" });
             }
 
             return View(khachHang);
@@ -36,7 +45,7 @@ namespace WebQLministop.Controllers
             var khachHangId = HttpContext.Session.GetInt32("KhachHangId");
             if (khachHangId == null)
             {
-                return RedirectToAction("Index", "DangNhap");
+                return RedirectToAction("Index", "DangNhap", new { area = "KhachHang" });
             }
 
             var donHangs = await _context.DonHangs
@@ -57,7 +66,7 @@ namespace WebQLministop.Controllers
             var khachHang = await LayKhachHangDangNhap();
             if (khachHang == null)
             {
-                return RedirectToAction("Index", "DangNhap");
+                return RedirectToAction("Index", "DangNhap", new { area = "KhachHang" });
             }
 
             hoTen = hoTen?.Trim() ?? string.Empty;
@@ -115,6 +124,16 @@ namespace WebQLministop.Controllers
             }
 
             await _context.SaveChangesAsync();
+
+            var user = await LayIdentityUser(khachHang);
+            if (user != null)
+            {
+                user.HoTen = khachHang.HoTen;
+                user.Email = khachHang.Email;
+                user.PhoneNumber = khachHang.DienThoai;
+                await _userManager.UpdateAsync(user);
+            }
+
             LuuSessionKhachHang(khachHang);
 
             TempData["ThongBaoThanhCong"] = "Đã cập nhật thông tin cá nhân.";
@@ -128,18 +147,20 @@ namespace WebQLministop.Controllers
             var khachHang = await LayKhachHangDangNhap();
             if (khachHang == null)
             {
-                return RedirectToAction("Index", "DangNhap");
+                return RedirectToAction("Index", "DangNhap", new { area = "KhachHang" });
             }
 
-            if (string.IsNullOrWhiteSpace(khachHang.MatKhauHash))
+            var user = await LayIdentityUser(khachHang);
+            if (user == null)
             {
-                ModelState.AddModelError(string.Empty, "Tài khoản Google không sử dụng mật khẩu nội bộ.");
+                ModelState.AddModelError(string.Empty, "Không tìm thấy tài khoản đăng nhập tương ứng.");
                 return View("Index", khachHang);
             }
 
-            if (_passwordHasher.VerifyHashedPassword(khachHang, khachHang.MatKhauHash, matKhauHienTai) == PasswordVerificationResult.Failed)
+            if (!await _userManager.HasPasswordAsync(user))
             {
-                ModelState.AddModelError(string.Empty, "Mật khẩu hiện tại không đúng.");
+                ModelState.AddModelError(string.Empty, "Tài khoản Google không sử dụng mật khẩu nội bộ.");
+                return View("Index", khachHang);
             }
 
             if (string.IsNullOrWhiteSpace(matKhauMoi) || matKhauMoi.Length < 6)
@@ -157,19 +178,40 @@ namespace WebQLministop.Controllers
                 return View("Index", khachHang);
             }
 
-            khachHang.MatKhauHash = _passwordHasher.HashPassword(khachHang, matKhauMoi);
+            var ketQua = await _userManager.ChangePasswordAsync(user, matKhauHienTai, matKhauMoi);
+            if (!ketQua.Succeeded)
+            {
+                foreach (var loi in ketQua.Errors)
+                {
+                    ModelState.AddModelError(string.Empty, loi.Description);
+                }
+
+                return View("Index", khachHang);
+            }
+
+            khachHang.MatKhauHash = user.PasswordHash;
             await _context.SaveChangesAsync();
+            await _signInManager.RefreshSignInAsync(user);
 
             TempData["ThongBaoThanhCong"] = "Đã đổi mật khẩu thành công.";
             return RedirectToAction(nameof(Index));
         }
 
-        private async Task<KhachHang?> LayKhachHangDangNhap()
+        private async Task<KhachHangModel?> LayKhachHangDangNhap()
         {
             var khachHangId = HttpContext.Session.GetInt32("KhachHangId");
             if (khachHangId == null) return null;
 
             return await _context.KhachHangs.FirstOrDefaultAsync(k => k.Id == khachHangId && k.KichHoat);
+        }
+
+        private async Task<ApplicationUser?> LayIdentityUser(KhachHangModel khachHang)
+        {
+            return await _userManager.Users.FirstOrDefaultAsync(u =>
+                u.LoaiTaiKhoan == "KhachHang" &&
+                (u.KhachHangId == khachHang.Id ||
+                 (!string.IsNullOrWhiteSpace(khachHang.Email) && u.Email == khachHang.Email) ||
+                 (!string.IsNullOrWhiteSpace(khachHang.DienThoai) && u.PhoneNumber == khachHang.DienThoai)));
         }
 
         private async Task<string> LuuAnhDaiDien(int khachHangId, IFormFile file)
@@ -186,7 +228,7 @@ namespace WebQLministop.Controllers
             return $"/uploads/khachhang/{tenFile}";
         }
 
-        private void LuuSessionKhachHang(KhachHang khachHang)
+        private void LuuSessionKhachHang(KhachHangModel khachHang)
         {
             HttpContext.Session.SetString("KhachHangHoTen", khachHang.HoTen);
             HttpContext.Session.SetInt32("KhachHangDiemThuong", khachHang.DiemThuong);
